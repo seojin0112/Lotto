@@ -1,0 +1,32 @@
+# 매주 토요일 추첨 후 당첨번호 데이터(draws.js)를 자동 갱신
+name: update-draws
+
+on:
+  schedule:
+    - cron: '30 15 * * 6' # 매주 일요일 00:30 KST (UTC 기준 토 15:30)
+  workflow_dispatch: # 수동 실행도 가능
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 당첨번호 데이터 갱신
+        run: node scripts/update-draws.mjs
+      - name: 변경 시 커밋
+        run: |
+          if git diff --quiet draws.js; then
+            echo "새 회차 없음 — 커밋 생략"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add draws.js
+          git commit -m "chore(data): 로또 당첨번호 데이터 갱신"
+          git push

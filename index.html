@@ -56,7 +56,7 @@
     color: var(--text);
   }
   #seed:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  #games {
+  #games, #max-rank {
     flex: 0 0 auto;
     padding: 10px 12px;
     font-size: 0.95rem;
@@ -88,7 +88,7 @@
     padding: 12px 14px;
     margin-bottom: 10px;
   }
-  .slip .label {
+  .slip .label, .hist-game .label {
     flex: 0 0 auto;
     width: 28px;
     font-weight: 800;
@@ -125,6 +125,39 @@
     border: 1px solid var(--line);
     font-weight: 600;
   }
+  #history { margin-top: 28px; }
+  .hist-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .hist-head h2 { font-size: 1.15rem; margin: 0; }
+  .hist-scope { color: var(--muted); font-size: 0.82rem; margin: 6px 0 12px; }
+  .hist-game {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 2px 14px;
+    margin-bottom: 10px;
+  }
+  .hist-game summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    cursor: pointer;
+    list-style: none;
+  }
+  .hist-game summary::-webkit-details-marker { display: none; }
+  .hist-game summary::before { content: '▸'; color: var(--muted); }
+  .hist-game details[open] summary::before { content: '▾'; }
+  .sum-text { flex: 1; font-size: 0.95rem; }
+  .no-hit { display: flex; align-items: center; gap: 10px; padding: 10px 0; color: var(--muted); }
+  .hit-row { border-top: 1px solid var(--line); padding: 10px 0; }
+  .hit-meta { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .hit-rank { font-weight: 800; color: var(--accent); }
+  .hit-draw { color: var(--muted); font-size: 0.88rem; }
+  .hit-amt { font-weight: 700; margin-left: auto; }
+  .hit-balls { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+  .ball.sm { width: 28px; height: 28px; font-size: 0.8rem; animation: none; }
+  .ball.dim { opacity: 0.25; filter: grayscale(0.6); text-shadow: none; }
+  .plus { color: var(--muted); font-weight: 700; margin: 0 2px; }
   #copy-status { margin-left: 10px; font-size: 0.9rem; color: var(--muted); }
   .error { color: #d64545; margin-top: 16px; }
   .note { margin-top: 28px; font-size: 0.85rem; color: var(--muted); }
@@ -151,11 +184,29 @@
     <div id="slips"></div>
     <button id="copy" type="button">결과 복사</button><span id="copy-status" role="status"></span>
   </section>
+
+  <section id="history" hidden>
+    <div class="hist-head">
+      <h2>🏆 당첨 이력</h2>
+      <select id="max-rank" aria-label="조회 범위">
+        <option value="1">1등만</option>
+        <option value="2">2등까지</option>
+        <option value="3">3등까지</option>
+        <option value="4">4등까지</option>
+        <option value="5" selected>5등까지</option>
+      </select>
+    </div>
+    <p id="hist-scope" class="hist-scope"></p>
+    <p id="hist-error" class="error" hidden>당첨번호 데이터(draws.js)를 불러오지 못했습니다. 저장소에서 <code>node scripts/update-draws.mjs</code>를 실행해 생성해 주세요.</p>
+    <div id="hist-games"></div>
+  </section>
+
   <p id="message" class="error" hidden></p>
 
   <p class="note">번호는 입력 문자열의 SHA-256 해시로 계산되며 무작위 추첨이 아닙니다. 재미로만 이용하세요.</p>
 </main>
 
+<script src="draws.js"></script>
 <script>
   const GAME_LABELS = ['A', 'B', 'C', 'D', 'E'];
 
@@ -204,6 +255,11 @@
   const message = document.getElementById('message');
   const copyBtn = document.getElementById('copy');
   const copyStatus = document.getElementById('copy-status');
+  const historySection = document.getElementById('history');
+  const histGames = document.getElementById('hist-games');
+  const histScope = document.getElementById('hist-scope');
+  const histError = document.getElementById('hist-error');
+  const maxRankSelect = document.getElementById('max-rank');
   let lastResult = null;
 
   form.addEventListener('submit', async (e) => {
@@ -225,6 +281,7 @@
     }
     lastResult = { seedText, games };
     render(games);
+    renderHistory();
   });
 
   function render(games) {
@@ -256,8 +313,141 @@
     message.textContent = text;
     message.hidden = false;
     result.hidden = true;
+    historySection.hidden = true;
     lastResult = null;
   }
+
+  // ----- 당첨 이력 조회 -----
+  const RANK_LABELS = ['', '1등', '2등', '3등', '4등', '5등'];
+  let draws = null;
+
+  function getDraws() {
+    if (draws) return draws;
+    if (typeof LOTTO_DRAWS === 'undefined') return null;
+    draws = LOTTO_DRAWS.map((r) => ({ epsd: r[0], ymd: r[1], nums: r.slice(2, 8), bns: r[8], amt: r.slice(9) }));
+    return draws;
+  }
+
+  // 한 게임(6개 번호)을 전 회차와 대조해 등수별 히트 목록을 반환
+  function findHits(numbers, maxRank) {
+    const set = new Set(numbers);
+    const hits = [];
+    for (const d of getDraws()) {
+      let m = 0;
+      for (const n of d.nums) if (set.has(n)) m++;
+      let rank = 0;
+      if (m === 6) rank = 1;
+      else if (m === 5) rank = set.has(d.bns) ? 2 : 3;
+      else if (m === 4) rank = 4;
+      else if (m === 3) rank = 5;
+      if (rank && rank <= maxRank) hits.push({ rank, draw: d, amount: d.amt[rank - 1] });
+    }
+    // 높은 등수 우선, 같은 등수는 최신 회차 우선
+    hits.sort((a, b) => a.rank - b.rank || b.draw.epsd - a.draw.epsd);
+    return hits;
+  }
+
+  function fmtDate(ymd) {
+    const s = String(ymd);
+    return s.slice(0, 4) + '.' + s.slice(4, 6) + '.' + s.slice(6);
+  }
+
+  function fmtWon(n) {
+    return n === 0 ? '이월(당첨자 없음)' : n.toLocaleString('ko-KR') + '원';
+  }
+
+  function summaryText(hits) {
+    if (hits.length === 0) return '당첨 이력 없음';
+    const byRank = new Map();
+    let total = 0;
+    for (const h of hits) {
+      byRank.set(h.rank, (byRank.get(h.rank) || 0) + 1);
+      total += h.amount;
+    }
+    const parts = [...byRank.entries()].map(([rank, cnt]) => RANK_LABELS[rank] + ' ' + cnt + '회');
+    if (total > 0) parts.push('총 ' + total.toLocaleString('ko-KR') + '원');
+    return parts.join(' · ');
+  }
+
+  function ballEl(n, matched) {
+    const ball = document.createElement('span');
+    ball.className = 'ball sm ' + colorClass(n) + (matched ? '' : ' dim');
+    ball.textContent = n;
+    return ball;
+  }
+
+  function hitRowEl(hit, set) {
+    const row = document.createElement('div');
+    row.className = 'hit-row';
+    const meta = document.createElement('div');
+    meta.className = 'hit-meta';
+    const rank = document.createElement('span');
+    rank.className = 'hit-rank';
+    rank.textContent = RANK_LABELS[hit.rank];
+    const drawInfo = document.createElement('span');
+    drawInfo.className = 'hit-draw';
+    drawInfo.textContent = hit.draw.epsd + '회 · ' + fmtDate(hit.draw.ymd);
+    const amt = document.createElement('span');
+    amt.className = 'hit-amt';
+    amt.textContent = fmtWon(hit.amount);
+    meta.append(rank, drawInfo, amt);
+    const balls = document.createElement('div');
+    balls.className = 'hit-balls';
+    hit.draw.nums.forEach((n) => balls.appendChild(ballEl(n, set.has(n))));
+    const plus = document.createElement('span');
+    plus.className = 'plus';
+    plus.textContent = '+';
+    balls.appendChild(plus);
+    balls.appendChild(ballEl(hit.draw.bns, set.has(hit.draw.bns)));
+    row.append(meta, balls);
+    return row;
+  }
+
+  function renderHistory() {
+    if (!lastResult) return;
+    const ds = getDraws();
+    histError.hidden = !!ds;
+    histGames.innerHTML = '';
+    histScope.textContent = '';
+    historySection.hidden = false;
+    if (!ds) return;
+
+    const last = ds[ds.length - 1];
+    histScope.textContent =
+      '1~' + last.epsd.toLocaleString('ko-KR') + '회차(' + fmtDate(last.ymd) + ' 추첨) 기준 · 금액은 해당 회차의 1게임당 당첨금';
+
+    const maxRank = Number(maxRankSelect.value);
+    lastResult.games.forEach((numbers, gi) => {
+      const card = document.createElement('div');
+      card.className = 'hist-game';
+      const label = document.createElement('span');
+      label.className = 'label';
+      label.textContent = GAME_LABELS[gi];
+      const hits = findHits(numbers, maxRank);
+
+      if (hits.length === 0) {
+        const line = document.createElement('div');
+        line.className = 'no-hit';
+        line.append(label, document.createTextNode(summaryText(hits)));
+        card.appendChild(line);
+      } else {
+        const details = document.createElement('details');
+        details.open = hits.length <= 6;
+        const summary = document.createElement('summary');
+        const sumText = document.createElement('span');
+        sumText.className = 'sum-text';
+        sumText.textContent = summaryText(hits);
+        summary.append(label, sumText);
+        details.appendChild(summary);
+        const set = new Set(numbers);
+        hits.forEach((h) => details.appendChild(hitRowEl(h, set)));
+        card.appendChild(details);
+      }
+      histGames.appendChild(card);
+    });
+  }
+
+  maxRankSelect.addEventListener('change', renderHistory);
 
   copyBtn.addEventListener('click', async () => {
     if (!lastResult) return;
