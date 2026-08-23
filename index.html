@@ -58,7 +58,7 @@
     border-radius: 14px;
     padding: 14px;
   }
-  #seed, #pop-search-input, #tax-input {
+  #seed, #pop-search-input {
     flex: 1 1 100%;
     padding: 12px 14px;
     font-size: 1rem;
@@ -67,8 +67,8 @@
     background: var(--bg);
     color: var(--text);
   }
-  #seed:focus, #pop-search-input:focus, #tax-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  #pop-search-input, #tax-input { flex: 1 1 auto; }
+  #seed:focus, #pop-search-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  #pop-search-input { flex: 1 1 auto; }
   #games, #max-rank, #pop-sort {
     flex: 0 0 auto;
     padding: 10px 12px;
@@ -188,30 +188,46 @@
   .pop-desc { color: var(--muted); font-size: 0.88rem; margin: 6px 0 12px; }
   .pop-note { color: var(--muted); font-size: 0.85rem; margin: 4px 0 12px; }
   #num-map { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-  .num-cell { border: 1px solid var(--line); border-radius: 10px; text-align: center; padding: 6px 2px; }
+  .num-cell { border: 1px solid var(--line); border-radius: 10px; text-align: center; padding: 6px 2px; cursor: pointer; }
   .num-cell b { display: block; font-size: 1rem; }
   .num-cell span { font-size: 0.72rem; color: var(--muted); }
   .num-cell.hl { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .num-cell.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
   #num-map-float {
     position: fixed;
     right: 12px;
     bottom: 12px;
     z-index: 50;
-    width: 240px;
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 3px;
+    width: 312px;
     background: var(--card);
     border: 1px solid var(--line);
     border-radius: 12px;
-    padding: 8px;
+    padding: 10px;
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
   }
   #num-map-float[hidden] { display: none; }
-  #num-map-float .num-cell { padding: 2px 0; border-radius: 6px; }
-  #num-map-float .num-cell b { font-size: 0.72rem; }
+  #float-info { font-size: 0.78rem; color: var(--muted); text-align: center; margin-bottom: 7px; min-height: 1em; }
+  #num-map-float-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  #num-map-float .num-cell { padding: 4px 0; border-radius: 8px; }
+  #num-map-float .num-cell b { font-size: 0.85rem; }
   #num-map-float .num-cell span { display: none; }
-  #pop-search button, #tax-form button { flex: 0 0 auto; }
+  #pop-search button { flex: 0 0 auto; }
+  #pop-search-clear {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--line);
+    font-weight: 600;
+  }
+  #pop-search-balls {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+    min-height: 30px;
+  }
+  #pop-search-balls .ball { cursor: pointer; }
+  #pop-search-balls .placeholder { color: var(--muted); font-size: 0.82rem; }
   #pop-search-result { margin-top: 12px; }
   .pop-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .pop-chip {
@@ -252,13 +268,11 @@
     font-weight: 600;
   }
   .tier-expand {
-    flex-basis: 100%;
     display: flex;
     flex-direction: column;
     gap: 6px;
-    border-top: 1px solid var(--line);
-    padding-top: 8px;
   }
+  .tier-expand[hidden] { display: none; }
   .tier-expand .tier-status { color: var(--muted); font-size: 0.8rem; }
   .tier-expand .hit-balls { margin-top: 0; }
   .tier-more {
@@ -282,19 +296,33 @@
   #pop-method { margin-top: 16px; font-size: 0.85rem; color: var(--muted); }
   #pop-method summary { cursor: pointer; }
   #pop-method td { padding: 2px 10px 2px 0; }
-  .info-table { border-collapse: collapse; font-size: 0.88rem; margin: 8px 0 4px; }
-  .info-table th, .info-table td { border: 1px solid var(--line); padding: 6px 12px; text-align: right; }
-  .info-table th, .info-table td:first-child { text-align: left; }
-  .info-table th { background: var(--card); font-weight: 700; }
-  .ev-tax-toggle {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
+  .toggle-btn {
+    flex: 0 0 auto;
+    background: var(--bg);
     color: var(--muted);
-    font-size: 0.85rem;
-    margin: 4px 0 10px;
-    cursor: pointer;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 7px 16px;
+    font-size: 0.88rem;
+    font-weight: 700;
   }
+  .toggle-btn.active {
+    background: var(--accent);
+    color: var(--accent-text);
+    border-color: var(--accent);
+  }
+  .ev-controls { display: flex; align-items: center; gap: 10px; margin: 10px 0 6px; }
+  #ev-slider { width: 100%; accent-color: var(--accent); margin: 10px 0 4px; }
+  .ev-readout {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-top: 8px;
+    font-size: 0.95rem;
+  }
+  .ev-readout div { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; }
+  .ev-readout .ev-main { font-weight: 800; }
   .error { color: #d64545; margin-top: 16px; }
   .note { margin-top: 28px; font-size: 0.85rem; color: var(--muted); }
 </style>
@@ -357,9 +385,11 @@
 
       <h2>🔍 조합 인기도 검색</h2>
       <form id="pop-search">
-        <input id="pop-search-input" type="text" placeholder="번호 6개 입력 — 예: 3 7 12 24 31 44" autocomplete="off">
+        <input id="pop-search-input" type="text" inputmode="numeric" placeholder="번호를 입력하거나 위 지도에서 클릭 — 예: 3 7 12" autocomplete="off">
         <button type="submit">조회</button>
+        <button type="button" id="pop-search-clear">초기화</button>
       </form>
+      <div id="pop-search-balls"></div>
       <p id="pop-search-error" class="error" hidden></p>
       <div id="pop-search-result" hidden></div>
 
@@ -383,7 +413,10 @@
         <p>한계: 특성으로 설명되는 경향만 반영하므로 특정 유명 조합(예: 7·14·21·28·35·42)의 개별 인기는 과소평가될 수 있습니다. 자동 구매가 판매의 다수를 차지해 모든 조합에 고르게 깔리므로 "판매량 0"인 조합은 없습니다. 숫자별 인기 지도는 모델과 별개로 번호 단위 실측 통계이며 표본 노이즈(±0.1 남짓)가 있습니다.</p>
       </details>
     </div>
-    <div id="num-map-float" hidden></div>
+    <div id="num-map-float" hidden>
+      <div id="float-info">조합에 마우스를 올려보세요</div>
+      <div id="num-map-float-grid"></div>
+    </div>
   </section>
 
   <section id="tab-ev" hidden>
@@ -391,11 +424,16 @@
     <div id="ev-block">
       <h2>💰 조합의 예상 기대값</h2>
       <p class="pop-note" id="ev-note"></p>
-      <label class="ev-tax-toggle"><input type="checkbox" id="ev-tax"> 세금 포함 — 200만원 초과 당첨금에 원천징수(3억원 이하분 22%, 초과분 33%, 구입비 1,000원 공제)를 적용합니다. 로또 당첨금은 분리과세라 원천징수로 끝납니다.</label>
-      <table class="info-table">
-        <thead><tr><th>조합 인기도</th><th>기대값 / 1,000원</th><th>그중 1등 몫</th></tr></thead>
-        <tbody id="ev-rows"></tbody>
-      </table>
+      <div class="ev-controls">
+        <button type="button" id="ev-tax" class="toggle-btn" aria-pressed="false">세금 포함</button>
+      </div>
+      <p class="pop-note">세금 포함 시 200만원 초과 당첨금에 원천징수(3억원 이하분 22%, 초과분 33%, 구입비 1,000원 공제)를 적용합니다. 로또 당첨금은 분리과세라 원천징수로 끝납니다.</p>
+      <input id="ev-slider" type="range" min="0" max="1000" value="436" aria-label="조합 인기도 배율">
+      <div class="ev-readout">
+        <div><span>조합 인기도</span><span id="ev-r"></span></div>
+        <div class="ev-main"><span>기대값 / 1,000원</span><span id="ev-total"></span></div>
+        <div><span>그중 1등 몫</span><span id="ev-first"></span></div>
+      </div>
       <p class="pop-note">4·5등은 금액이 고정이라 인기도와 무관하고, 1~3등은 당첨자끼리 나누기 때문에 비인기 조합일수록 기대값이 높아집니다. 내 조합의 예상 기대값은 [조합 인기도] 탭의 검색에서 확인할 수 있습니다. 실제 회차의 판매량·이월에 따라 달라집니다.</p>
     </div>
   </section>
@@ -574,8 +612,18 @@
     initEvParams(ds);
     renderPopCoefs();
     renderNumMap(LottoPop.numberStats(data));
-    renderEvTable();
+    renderEv();
     return true;
+  }
+
+  // "이보다 많이 팔리는 조합 비율" 기준의 한 방향 백분위 문구
+  function topPctText(s) {
+    const pct = scanResult ? LottoPop.scanPercentile(scanResult, s) : LottoPop.percentile(popDist, s);
+    return '인기 상위 ' + Math.min(99, Math.max(1, Math.round(100 - pct))) + '%';
+  }
+
+  function evTaxFn() {
+    return evTaxBtn.classList.contains('active') ? (amt) => lottoTax(amt).tax : null;
   }
 
   // 기대값 파라미터: 판매량·등수별 배분 총액은 최근 52회, 자동 구매 비중은 최근 156회 평균으로 추정
@@ -592,29 +640,36 @@
     document.getElementById('ev-note').textContent =
       '최근 52회 평균 기준: 회당 판매 약 ' + (games / 1e8).toFixed(1) + '억 게임, 1등 배분 총액 약 ' +
       Math.round(evParams.pool1 / 1e8).toLocaleString('ko-KR') + '억 원, 자동 구매 비중 약 ' +
-      Math.round(autoShare * 100) + '%. 이 조건에서 인기도별 1,000원 1게임의 예상 기대값은 다음과 같습니다.';
+      Math.round(autoShare * 100) + '%. 아래 슬라이더로 조합 인기도를 골라 1,000원 1게임의 예상 기대값을 확인하세요.';
   }
 
-  function renderEvTable() {
-    const taxFn = document.getElementById('ev-tax').checked ? (amt) => lottoTax(amt).tax : null;
-    const tbody = document.getElementById('ev-rows');
-    tbody.innerHTML = '';
-    for (const [r, label] of [[0.25, '×0.25 (매우 비인기)'], [0.5, '×0.5 (비인기)'], [1, '×1.0 (평균)'], [2, '×2 (인기)'], [5, '×5 (매우 인기)']]) {
-      const ev = LottoPop.expectedValueAt(evParams, r, taxFn);
-      const tr = document.createElement('tr');
-      for (const text of [label, Math.round(ev.total).toLocaleString('ko-KR') + '원', Math.round(ev.ev1).toLocaleString('ko-KR') + '원']) {
-        const td = document.createElement('td');
-        td.textContent = text;
-        tr.appendChild(td);
-      }
-      tbody.appendChild(tr);
-    }
+  // 기대값: 슬라이더(로그 스케일)로 고른 인기도 배율에 대해 세금 토글을 반영해 표시
+  const EV_R_MIN = 0.2, EV_R_MAX = 8;
+  const evSlider = document.getElementById('ev-slider');
+  const evTaxBtn = document.getElementById('ev-tax');
+
+  function renderEv() {
+    if (!evParams) return;
+    const frac = evSlider.value / Number(evSlider.max);
+    const r = Math.exp(Math.log(EV_R_MIN) + frac * (Math.log(EV_R_MAX) - Math.log(EV_R_MIN)));
+    const ev = LottoPop.expectedValueAt(evParams, r, evTaxFn());
+    document.getElementById('ev-r').textContent = '×' + r.toFixed(2) + ' · ' + topPctText(r);
+    document.getElementById('ev-total').textContent = Math.round(ev.total).toLocaleString('ko-KR') + '원';
+    document.getElementById('ev-first').textContent = Math.round(ev.ev1).toLocaleString('ko-KR') + '원';
   }
+
+  evSlider.addEventListener('input', renderEv);
+  evTaxBtn.addEventListener('click', () => {
+    const on = !evTaxBtn.classList.contains('active');
+    evTaxBtn.classList.toggle('active', on);
+    evTaxBtn.setAttribute('aria-pressed', String(on));
+    renderEv();
+  });
 
   // 숫자별 인기 지도: 실측 통계(rel[n], 평균=1)를 붉은색(인기)~푸른색(비인기)으로 표시.
   // 본문 지도와 플로팅 미니 지도 두 곳에 같은 셀을 렌더링한다.
   function renderNumMap(rel) {
-    for (const map of [document.getElementById('num-map'), document.getElementById('num-map-float')]) {
+    for (const map of [document.getElementById('num-map'), document.getElementById('num-map-float-grid')]) {
       map.innerHTML = '';
       for (let n = 1; n <= 45; n++) {
         const cell = document.createElement('div');
@@ -635,20 +690,36 @@
     }
   }
 
-  // 조합에 마우스를 올리면 인기도 지도(본문·플로팅)에서 해당 번호를 강조
+  // 조합에 마우스를 올리면 인기도 지도(본문·플로팅)에서 해당 번호를 강조하고,
+  // 플로팅 지도 상단에 그 조합의 배율·상위%·기대값을 표시
+  const FLOAT_INFO_DEFAULT = '조합에 마우스를 올려보세요';
   function clearMapHighlight() {
     document.querySelectorAll('.num-cell.hl').forEach((c) => c.classList.remove('hl'));
+    document.getElementById('float-info').textContent = FLOAT_INFO_DEFAULT;
   }
   tabPanels.pop.addEventListener('pointerover', (e) => {
     const balls = e.target.closest('.hit-balls, .balls');
     if (!balls) return;
     clearMapHighlight();
-    for (const ball of balls.querySelectorAll('.ball')) {
-      document.querySelectorAll('.num-cell[data-n="' + ball.textContent + '"]').forEach((c) => c.classList.add('hl'));
+    const nums = [...balls.querySelectorAll('.ball')].map((el) => Number(el.textContent));
+    for (const n of nums) {
+      document.querySelectorAll('.num-cell[data-n="' + n + '"]').forEach((c) => c.classList.add('hl'));
+    }
+    if (popModel && nums.length === 6) {
+      const s = LottoPop.score(popModel, [...nums].sort((a, b) => a - b));
+      const ev = LottoPop.expectedValueAt(evParams, s, evTaxFn());
+      document.getElementById('float-info').textContent =
+        '×' + s.toFixed(2) + ' · ' + topPctText(s) + ' · 기대값 ' + Math.round(ev.total).toLocaleString('ko-KR') + '원';
     }
   });
   tabPanels.pop.addEventListener('pointerout', (e) => {
     if (e.target.closest('.hit-balls, .balls')) clearMapHighlight();
+  });
+
+  // 지도 셀 클릭 → 검색 선택에 추가/제거
+  tabPanels.pop.addEventListener('click', (e) => {
+    const cell = e.target.closest('.num-cell');
+    if (cell) toggleSearchNum(Number(cell.dataset.n));
   });
 
   // 본문 지도가 화면 밖으로 나가면 플로팅 미니 지도를 띄운다 (탭이 숨겨지면 섹션째 사라짐)
@@ -698,21 +769,91 @@
     });
   }
 
-  // ----- 조합 인기도 검색 -----
-  document.getElementById('pop-search').addEventListener('submit', (e) => {
-    e.preventDefault();
-    popSearchError.hidden = true;
-    popSearchResult.hidden = true;
-    if (!ensurePopModel()) return;
-    const nums = popSearchInput.value.split(/[^0-9]+/).filter(Boolean).map(Number);
-    const valid = nums.length === 6 && nums.every((n) => n >= 1 && n <= 45) && new Set(nums).size === 6;
-    if (!valid) {
-      popSearchError.textContent = '1~45 사이의 서로 다른 숫자 6개를 입력해 주세요.';
-      popSearchError.hidden = false;
+  // ----- 조합 인기도 검색 (입력 또는 지도 클릭으로 선택, 선택은 공 모양으로 표시) -----
+  const popSearchBalls = document.getElementById('pop-search-balls');
+  let searchSel = [];
+
+  function flashSearchError(msg) {
+    popSearchError.textContent = msg;
+    popSearchError.hidden = false;
+  }
+
+  function addSearchNum(n) {
+    if (!Number.isInteger(n) || n < 1 || n > 45) {
+      flashSearchError('1~45 사이 번호만 선택할 수 있습니다.');
       return;
     }
-    nums.sort((a, b) => a - b);
-    renderSearchResult(nums);
+    if (searchSel.includes(n)) return;
+    if (searchSel.length >= 6) {
+      flashSearchError('이미 6개를 선택했습니다. 공이나 지도를 클릭해 빼고 다시 추가하세요.');
+      return;
+    }
+    searchSel.push(n);
+    onSearchSelChange();
+  }
+
+  function toggleSearchNum(n) {
+    if (searchSel.includes(n)) {
+      searchSel = searchSel.filter((x) => x !== n);
+      onSearchSelChange();
+    } else {
+      addSearchNum(n);
+    }
+  }
+
+  function onSearchSelChange() {
+    popSearchError.hidden = true;
+    renderSearchSel();
+    document.querySelectorAll('.num-cell').forEach((c) => c.classList.toggle('sel', searchSel.includes(Number(c.dataset.n))));
+    if (searchSel.length === 6 && ensurePopModel()) renderSearchResult([...searchSel].sort((a, b) => a - b));
+    else popSearchResult.hidden = true;
+  }
+
+  function renderSearchSel() {
+    popSearchBalls.innerHTML = '';
+    if (searchSel.length === 0) {
+      const ph = document.createElement('span');
+      ph.className = 'placeholder';
+      ph.textContent = '선택한 번호가 여기 공 모양으로 표시됩니다';
+      popSearchBalls.appendChild(ph);
+      return;
+    }
+    for (const n of [...searchSel].sort((a, b) => a - b)) {
+      const ball = ballEl(n, true);
+      ball.title = '클릭해서 제거';
+      ball.addEventListener('click', () => toggleSearchNum(n));
+      popSearchBalls.appendChild(ball);
+    }
+  }
+  renderSearchSel();
+
+  // 입력창의 숫자는 완성되는 대로 공 모양 선택으로 옮긴다
+  popSearchInput.addEventListener('input', () => {
+    const raw = popSearchInput.value;
+    const tokens = raw.split(/[^0-9]+/).filter(Boolean);
+    let keep = '';
+    if (/[0-9]$/.test(raw) && tokens.length) keep = tokens.pop();
+    for (const tok of tokens) addSearchNum(Number(tok));
+    // 더 이어질 수 없는 토큰(두 자리이거나 5~9로 시작 — 5x는 45 초과)은 즉시 확정
+    if (keep && (keep.length >= 2 || Number(keep) >= 5)) {
+      addSearchNum(Number(keep));
+      keep = '';
+    }
+    popSearchInput.value = keep;
+  });
+
+  document.getElementById('pop-search').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const tok = popSearchInput.value.replace(/[^0-9]/g, '');
+    popSearchInput.value = '';
+    if (tok) addSearchNum(Number(tok));
+    if (searchSel.length !== 6) flashSearchError('서로 다른 번호 6개를 선택해 주세요 (현재 ' + searchSel.length + '개).');
+  });
+
+  document.getElementById('pop-search-clear').addEventListener('click', () => {
+    searchSel = [];
+    popSearchInput.value = '';
+    onSearchSelChange();
   });
 
   function renderSearchResult(nums) {
@@ -794,6 +935,7 @@
     count.className = 'pop-count';
     const label = t.count.toLocaleString('ko-KR') + '개 조합 보기';
     count.textContent = label;
+    const previewKeys = new Set(t.combos.map((c) => c.join(',')));
     let expand = null, status = null, moreBtn = null, enumState = null, loaded = 0, running = null;
 
     function loadMore() {
@@ -807,11 +949,14 @@
           running = null;
           enumState = res.state;
           loaded += res.combos.length;
-          for (const nums of res.combos) expand.insertBefore(ballsRowEl(nums), status);
+          // 미리보기로 이미 보이는 조합은 건너뛰고, 그 아래에 같은 열로 이어 붙인다
+          for (const nums of res.combos) {
+            if (!previewKeys.has(nums.join(','))) expand.insertBefore(ballsRowEl(nums), status);
+          }
           if (res.exhausted) {
-            status.textContent = loaded.toLocaleString('ko-KR') + '개 전체 표시됨';
+            status.textContent = '전체 ' + t.count.toLocaleString('ko-KR') + '개 표시됨';
           } else {
-            status.textContent = t.count.toLocaleString('ko-KR') + '개 중 ' + loaded.toLocaleString('ko-KR') + '개 표시';
+            status.textContent = t.count.toLocaleString('ko-KR') + '개 중 ' + loaded.toLocaleString('ko-KR') + '개 불러옴';
             moreBtn.hidden = false;
           }
         },
@@ -833,7 +978,7 @@
         moreBtn.hidden = true;
         moreBtn.addEventListener('click', loadMore);
         expand.append(status, moreBtn);
-        row.appendChild(expand);
+        combos.appendChild(expand);
         count.textContent = '접기';
         loadMore();
       } else if (expand.hidden) {
@@ -893,8 +1038,6 @@
     const high = Math.floor(Math.max(0, taxable - 300000000) * 0.33);
     return { tax: low + high };
   }
-
-  document.getElementById('ev-tax').addEventListener('change', renderEvTable);
 
   // 한 게임(6개 번호)을 전 회차와 대조해 등수별 히트 목록을 반환
   function findHits(numbers, maxRank) {
