@@ -753,7 +753,10 @@
       chip.textContent = b.short + (b.unit ? ' ' + b.x + b.unit : '') + ' ×' + b.mult.toFixed(2);
       chips.appendChild(chip);
     }
-    popSearchResult.append(slip, text, chips);
+    const histNote = document.createElement('p');
+    histNote.className = 'pop-note';
+    histNote.textContent = '역대 전 회차 당첨 이력 (5등까지)';
+    popSearchResult.append(slip, text, chips, histNote, histGameCard(nums, 5, '🏆'));
     popSearchResult.hidden = false;
   }
 
@@ -1004,33 +1007,38 @@
 
     const maxRank = Number(maxRankSelect.value);
     lastResult.games.forEach((numbers, gi) => {
-      const card = document.createElement('div');
-      card.className = 'hist-game';
-      const label = document.createElement('span');
-      label.className = 'label';
-      label.textContent = GAME_LABELS[gi];
-      const hits = findHits(numbers, maxRank);
-
-      if (hits.length === 0) {
-        const line = document.createElement('div');
-        line.className = 'no-hit';
-        line.append(label, document.createTextNode(summaryText(hits)));
-        card.appendChild(line);
-      } else {
-        const details = document.createElement('details');
-        details.open = hits.length <= 6;
-        const summary = document.createElement('summary');
-        const sumText = document.createElement('span');
-        sumText.className = 'sum-text';
-        sumText.textContent = summaryText(hits);
-        summary.append(label, sumText);
-        details.appendChild(summary);
-        const set = new Set(numbers);
-        hits.forEach((h) => details.appendChild(hitRowEl(h, set)));
-        card.appendChild(details);
-      }
-      histGames.appendChild(card);
+      histGames.appendChild(histGameCard(numbers, maxRank, GAME_LABELS[gi]));
     });
+  }
+
+  // 한 게임의 당첨 이력 카드 (변환 결과·조합 검색에서 공용)
+  function histGameCard(numbers, maxRank, labelText) {
+    const card = document.createElement('div');
+    card.className = 'hist-game';
+    const label = document.createElement('span');
+    label.className = 'label';
+    label.textContent = labelText;
+    const hits = findHits(numbers, maxRank);
+
+    if (hits.length === 0) {
+      const line = document.createElement('div');
+      line.className = 'no-hit';
+      line.append(label, document.createTextNode(summaryText(hits)));
+      card.appendChild(line);
+    } else {
+      const details = document.createElement('details');
+      details.open = hits.length <= 6;
+      const summary = document.createElement('summary');
+      const sumText = document.createElement('span');
+      sumText.className = 'sum-text';
+      sumText.textContent = summaryText(hits);
+      summary.append(label, sumText);
+      details.appendChild(summary);
+      const set = new Set(numbers);
+      hits.forEach((h) => details.appendChild(hitRowEl(h, set)));
+      card.appendChild(details);
+    }
+    return card;
   }
 
   maxRankSelect.addEventListener('change', renderHistory);
