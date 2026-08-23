@@ -231,7 +231,7 @@
       </select>
     </div>
     <p id="hist-scope" class="hist-scope"></p>
-    <p id="hist-error" class="error" hidden>당첨번호 데이터(draws.js)를 불러오지 못했습니다. 저장소에서 <code>node scripts/update-draws.mjs</code>를 실행해 생성해 주세요.</p>
+    <p id="hist-error" class="error" hidden>당첨번호 데이터(draws.js)가 없거나 이전 버전입니다. 강력 새로고침(Ctrl+F5)을 해보고, 그래도 안 되면 저장소에서 <code>node scripts/update-draws.mjs</code>를 실행해 주세요.</p>
     <div id="hist-games"></div>
   </section>
 
@@ -381,6 +381,8 @@
   function getDraws() {
     if (draws) return draws;
     if (typeof LOTTO_DRAWS === 'undefined') return null;
+    // 스키마 불일치(예: 배포 직후 브라우저에 이전 버전 draws.js가 캐시된 경우)면 NaN으로 계산하는 대신 안내를 띄운다
+    if (!LOTTO_DRAWS.length || LOTTO_DRAWS[0].length !== 23) return null;
     draws = LOTTO_DRAWS.map((r) => ({
       epsd: r[0], ymd: r[1], nums: r.slice(2, 8), bns: r[8],
       amt: r.slice(9, 14), cnt: r.slice(14, 19), sales: r[19],
