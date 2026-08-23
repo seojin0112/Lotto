@@ -183,7 +183,7 @@
     padding: 3px 10px;
     white-space: nowrap;
   }
-  #tab-pop h2, #tab-tax h2 { font-size: 1.15rem; margin: 26px 0 4px; }
+  #tab-pop h2, #tab-ev h2 { font-size: 1.15rem; margin: 26px 0 4px; }
   #pop-content > h2:first-child, #ev-block > h2:first-child { margin-top: 0; }
   .pop-desc { color: var(--muted); font-size: 0.88rem; margin: 6px 0 12px; }
   .pop-note { color: var(--muted); font-size: 0.85rem; margin: 4px 0 12px; }
@@ -191,6 +191,26 @@
   .num-cell { border: 1px solid var(--line); border-radius: 10px; text-align: center; padding: 6px 2px; }
   .num-cell b { display: block; font-size: 1rem; }
   .num-cell span { font-size: 0.72rem; color: var(--muted); }
+  .num-cell.hl { outline: 2px solid var(--accent); outline-offset: -1px; }
+  #num-map-float {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    z-index: 50;
+    width: 240px;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 8px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
+  }
+  #num-map-float[hidden] { display: none; }
+  #num-map-float .num-cell { padding: 2px 0; border-radius: 6px; }
+  #num-map-float .num-cell b { font-size: 0.72rem; }
+  #num-map-float .num-cell span { display: none; }
   #pop-search button, #tax-form button { flex: 0 0 auto; }
   #pop-search-result { margin-top: 12px; }
   .pop-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
@@ -220,7 +240,38 @@
   .pop-mult { flex: 0 0 auto; width: 56px; font-weight: 800; text-align: center; }
   .pop-combos { display: flex; flex-direction: column; gap: 6px; }
   .pop-combos .hit-balls { margin-top: 0; }
-  .pop-count { margin-left: auto; color: var(--muted); font-size: 0.8rem; }
+  button.pop-count {
+    flex: 0 0 auto;
+    margin-left: auto;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px 10px;
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .tier-expand {
+    flex-basis: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-top: 1px solid var(--line);
+    padding-top: 8px;
+  }
+  .tier-expand .tier-status { color: var(--muted); font-size: 0.8rem; }
+  .tier-expand .hit-balls { margin-top: 0; }
+  .tier-more {
+    align-self: flex-start;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px 10px;
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 600;
+    flex: 0 0 auto;
+  }
   #pop-more {
     width: 100%;
     background: transparent;
@@ -235,11 +286,15 @@
   .info-table th, .info-table td { border: 1px solid var(--line); padding: 6px 12px; text-align: right; }
   .info-table th, .info-table td:first-child { text-align: left; }
   .info-table th { background: var(--card); font-weight: 700; }
-  .tax-lines { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 12px; font-size: 0.92rem; }
-  .tax-lines div { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; }
-  .tax-lines .tax-final { font-weight: 800; border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; }
-  .info-list { color: var(--muted); font-size: 0.88rem; padding-left: 18px; margin: 6px 0 14px; }
-  .info-list li { margin-bottom: 4px; }
+  .ev-tax-toggle {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin: 4px 0 10px;
+    cursor: pointer;
+  }
   .error { color: #d64545; margin-top: 16px; }
   .note { margin-top: 28px; font-size: 0.85rem; color: var(--muted); }
 </style>
@@ -250,7 +305,7 @@
   <nav class="tabs">
     <button type="button" class="tab-btn active" data-tab="convert">🎱 번호 변환</button>
     <button type="button" class="tab-btn" data-tab="pop">📊 조합 인기도</button>
-    <button type="button" class="tab-btn" data-tab="tax">💰 기대값·세금</button>
+    <button type="button" class="tab-btn" data-tab="ev">💰 기대값</button>
   </nav>
 
   <div id="tab-convert">
@@ -328,31 +383,21 @@
         <p>한계: 특성으로 설명되는 경향만 반영하므로 특정 유명 조합(예: 7·14·21·28·35·42)의 개별 인기는 과소평가될 수 있습니다. 자동 구매가 판매의 다수를 차지해 모든 조합에 고르게 깔리므로 "판매량 0"인 조합은 없습니다. 숫자별 인기 지도는 모델과 별개로 번호 단위 실측 통계이며 표본 노이즈(±0.1 남짓)가 있습니다.</p>
       </details>
     </div>
+    <div id="num-map-float" hidden></div>
   </section>
 
-  <section id="tab-tax" hidden>
+  <section id="tab-ev" hidden>
+    <p id="ev-error" class="error" hidden>당첨번호 데이터(draws.js)가 없거나 이전 버전이라 기대값을 계산할 수 없습니다. 강력 새로고침(Ctrl+F5)을 해보세요.</p>
     <div id="ev-block">
       <h2>💰 조합의 예상 기대값</h2>
       <p class="pop-note" id="ev-note"></p>
+      <label class="ev-tax-toggle"><input type="checkbox" id="ev-tax"> 세금 포함 — 200만원 초과 당첨금에 원천징수(3억원 이하분 22%, 초과분 33%, 구입비 1,000원 공제)를 적용합니다. 로또 당첨금은 분리과세라 원천징수로 끝납니다.</label>
       <table class="info-table">
         <thead><tr><th>조합 인기도</th><th>기대값 / 1,000원</th><th>그중 1등 몫</th></tr></thead>
         <tbody id="ev-rows"></tbody>
       </table>
-      <p class="pop-note">4·5등은 금액이 고정이라 인기도와 무관하고, 1~3등은 당첨자끼리 나누기 때문에 비인기 조합일수록 기대값이 높아집니다. 내 조합의 예상 기대값은 [조합 인기도] 탭의 검색에서 확인할 수 있습니다. 세전 기준이며 실제 회차의 판매량·이월에 따라 달라집니다.</p>
+      <p class="pop-note">4·5등은 금액이 고정이라 인기도와 무관하고, 1~3등은 당첨자끼리 나누기 때문에 비인기 조합일수록 기대값이 높아집니다. 내 조합의 예상 기대값은 [조합 인기도] 탭의 검색에서 확인할 수 있습니다. 실제 회차의 판매량·이월에 따라 달라집니다.</p>
     </div>
-
-    <h2>🧾 당첨금 세금</h2>
-    <ul class="info-list">
-      <li>로또 당첨금은 기타소득으로 <b>분리과세</b>됩니다 — 수령할 때 원천징수로 끝나며 종합소득에 합산되지 않습니다.</li>
-      <li>1건당 <b>200만원 이하는 비과세</b>입니다 — 5등(5천원)·4등(5만원), 대개 3등까지 세금이 없습니다.</li>
-      <li>200만원을 넘으면 전액(복권 구입비 1,000원 공제 후)이 과세됩니다: <b>3억원 이하분 22%</b>(소득세 20% + 지방소득세 2%), <b>3억원 초과분 33%</b>(30% + 3%).</li>
-    </ul>
-    <form id="tax-form">
-      <input id="tax-input" type="text" inputmode="numeric" placeholder="당첨금 입력(원) — 예: 2,500,000,000" autocomplete="off">
-      <button type="submit">계산</button>
-    </form>
-    <p id="tax-error" class="error" hidden></p>
-    <div id="tax-result" class="tax-lines" hidden></div>
   </section>
 
   <p class="note">번호는 입력 문자열의 SHA-256 해시로 계산되며 무작위 추첨이 아닙니다. 재미로만 이용하세요.</p>
@@ -492,7 +537,7 @@
   const tabPanels = {
     convert: document.getElementById('tab-convert'),
     pop: document.getElementById('tab-pop'),
-    tax: document.getElementById('tab-tax'),
+    ev: document.getElementById('tab-ev'),
   };
   const tabBtns = [...document.querySelectorAll('.tab-btn')];
 
@@ -500,6 +545,7 @@
     for (const [key, panel] of Object.entries(tabPanels)) panel.hidden = key !== name;
     tabBtns.forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
     history.replaceState(null, '', name === 'convert' ? location.pathname + location.search : '#' + name);
+    if (name === 'pop') updateFloatMap(); // 스크롤된 상태로 탭에 들어와도 플로팅 지도 상태를 맞춘다
   }
   tabBtns.forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
@@ -546,14 +592,15 @@
     document.getElementById('ev-note').textContent =
       '최근 52회 평균 기준: 회당 판매 약 ' + (games / 1e8).toFixed(1) + '억 게임, 1등 배분 총액 약 ' +
       Math.round(evParams.pool1 / 1e8).toLocaleString('ko-KR') + '억 원, 자동 구매 비중 약 ' +
-      Math.round(autoShare * 100) + '%. 이 조건에서 인기도별 1,000원 1게임의 예상 기대값(세전)은 다음과 같습니다.';
+      Math.round(autoShare * 100) + '%. 이 조건에서 인기도별 1,000원 1게임의 예상 기대값은 다음과 같습니다.';
   }
 
   function renderEvTable() {
+    const taxFn = document.getElementById('ev-tax').checked ? (amt) => lottoTax(amt).tax : null;
     const tbody = document.getElementById('ev-rows');
     tbody.innerHTML = '';
     for (const [r, label] of [[0.25, '×0.25 (매우 비인기)'], [0.5, '×0.5 (비인기)'], [1, '×1.0 (평균)'], [2, '×2 (인기)'], [5, '×5 (매우 인기)']]) {
-      const ev = LottoPop.expectedValueAt(evParams, r);
+      const ev = LottoPop.expectedValueAt(evParams, r, taxFn);
       const tr = document.createElement('tr');
       for (const text of [label, Math.round(ev.total).toLocaleString('ko-KR') + '원', Math.round(ev.ev1).toLocaleString('ko-KR') + '원']) {
         const td = document.createElement('td');
@@ -564,26 +611,53 @@
     }
   }
 
-  // 숫자별 인기 지도: 실측 통계(rel[n], 평균=1)를 붉은색(인기)~푸른색(비인기)으로 표시
+  // 숫자별 인기 지도: 실측 통계(rel[n], 평균=1)를 붉은색(인기)~푸른색(비인기)으로 표시.
+  // 본문 지도와 플로팅 미니 지도 두 곳에 같은 셀을 렌더링한다.
   function renderNumMap(rel) {
-    const map = document.getElementById('num-map');
-    map.innerHTML = '';
-    for (let n = 1; n <= 45; n++) {
-      const cell = document.createElement('div');
-      cell.className = 'num-cell';
-      const t = Math.max(-1, Math.min(1, (rel[n] - 1) / 0.3));
-      cell.style.background = t >= 0
-        ? 'rgba(255, 114, 114, ' + (t * 0.45).toFixed(3) + ')'
-        : 'rgba(91, 140, 255, ' + (-t * 0.45).toFixed(3) + ')';
-      cell.title = n + '번은 수동 구매에서 평균 대비 ' + rel[n].toFixed(2) + '배 선택됩니다';
-      const num = document.createElement('b');
-      num.textContent = n;
-      const val = document.createElement('span');
-      val.textContent = '×' + rel[n].toFixed(2);
-      cell.append(num, val);
-      map.appendChild(cell);
+    for (const map of [document.getElementById('num-map'), document.getElementById('num-map-float')]) {
+      map.innerHTML = '';
+      for (let n = 1; n <= 45; n++) {
+        const cell = document.createElement('div');
+        cell.className = 'num-cell';
+        cell.dataset.n = n;
+        const t = Math.max(-1, Math.min(1, (rel[n] - 1) / 0.3));
+        cell.style.background = t >= 0
+          ? 'rgba(255, 114, 114, ' + (t * 0.45).toFixed(3) + ')'
+          : 'rgba(91, 140, 255, ' + (-t * 0.45).toFixed(3) + ')';
+        cell.title = n + '번은 수동 구매에서 평균 대비 ' + rel[n].toFixed(2) + '배 선택됩니다';
+        const num = document.createElement('b');
+        num.textContent = n;
+        const val = document.createElement('span');
+        val.textContent = '×' + rel[n].toFixed(2);
+        cell.append(num, val);
+        map.appendChild(cell);
+      }
     }
   }
+
+  // 조합에 마우스를 올리면 인기도 지도(본문·플로팅)에서 해당 번호를 강조
+  function clearMapHighlight() {
+    document.querySelectorAll('.num-cell.hl').forEach((c) => c.classList.remove('hl'));
+  }
+  tabPanels.pop.addEventListener('pointerover', (e) => {
+    const balls = e.target.closest('.hit-balls, .balls');
+    if (!balls) return;
+    clearMapHighlight();
+    for (const ball of balls.querySelectorAll('.ball')) {
+      document.querySelectorAll('.num-cell[data-n="' + ball.textContent + '"]').forEach((c) => c.classList.add('hl'));
+    }
+  });
+  tabPanels.pop.addEventListener('pointerout', (e) => {
+    if (e.target.closest('.hit-balls, .balls')) clearMapHighlight();
+  });
+
+  // 본문 지도가 화면 밖으로 나가면 플로팅 미니 지도를 띄운다 (탭이 숨겨지면 섹션째 사라짐)
+  function updateFloatMap() {
+    const r = document.getElementById('num-map').getBoundingClientRect();
+    document.getElementById('num-map-float').hidden = r.bottom > 0 && r.top < window.innerHeight;
+  }
+  window.addEventListener('scroll', updateFloatMap, { passive: true });
+  window.addEventListener('resize', updateFloatMap, { passive: true });
 
   function popScore(nums) {
     const s = LottoPop.score(popModel, nums);
@@ -689,6 +763,15 @@
     return t.rankStart.toLocaleString('ko-KR') + '~' + (t.rankStart + t.count - 1).toLocaleString('ko-KR') + '위';
   }
 
+  function ballsRowEl(nums) {
+    const balls = document.createElement('div');
+    balls.className = 'hit-balls';
+    nums.forEach((n) => balls.appendChild(ballEl(n, true)));
+    return balls;
+  }
+
+  const activeEnums = new Set(); // 진행 중인 티어 열거 핸들 (목록 재렌더링 시 취소)
+
   function tierRowEl(t) {
     const row = document.createElement('div');
     row.className = 'pop-row';
@@ -700,15 +783,65 @@
     mult.textContent = '×' + t.mult.toFixed(2);
     const combos = document.createElement('div');
     combos.className = 'pop-combos';
-    for (const nums of t.combos) {
-      const balls = document.createElement('div');
-      balls.className = 'hit-balls';
-      nums.forEach((n) => balls.appendChild(ballEl(n, true)));
-      combos.appendChild(balls);
-    }
-    const count = document.createElement('span');
+    for (const nums of t.combos) combos.appendChild(ballsRowEl(nums));
+
+    // "N개 조합 보기": 이 점수 구간을 전 조합에서 실시간 재열거해 60개씩 이어서 보여준다
+    const count = document.createElement('button');
+    count.type = 'button';
     count.className = 'pop-count';
-    count.textContent = t.count.toLocaleString('ko-KR') + '개 조합';
+    const label = t.count.toLocaleString('ko-KR') + '개 조합 보기';
+    count.textContent = label;
+    let expand = null, status = null, moreBtn = null, enumState = null, loaded = 0, running = null;
+
+    function loadMore() {
+      if (running) return;
+      status.textContent = '불러오는 중…';
+      moreBtn.hidden = true;
+      const handle = LottoPop.enumerateTier(popModel, t, {
+        state: enumState,
+        onDone: (res) => {
+          activeEnums.delete(handle);
+          running = null;
+          enumState = res.state;
+          loaded += res.combos.length;
+          for (const nums of res.combos) expand.insertBefore(ballsRowEl(nums), status);
+          if (res.exhausted) {
+            status.textContent = loaded.toLocaleString('ko-KR') + '개 전체 표시됨';
+          } else {
+            status.textContent = t.count.toLocaleString('ko-KR') + '개 중 ' + loaded.toLocaleString('ko-KR') + '개 표시';
+            moreBtn.hidden = false;
+          }
+        },
+      });
+      running = handle;
+      activeEnums.add(handle);
+    }
+
+    count.addEventListener('click', () => {
+      if (!expand) {
+        expand = document.createElement('div');
+        expand.className = 'tier-expand';
+        status = document.createElement('span');
+        status.className = 'tier-status';
+        moreBtn = document.createElement('button');
+        moreBtn.type = 'button';
+        moreBtn.className = 'tier-more';
+        moreBtn.textContent = '더 불러오기';
+        moreBtn.hidden = true;
+        moreBtn.addEventListener('click', loadMore);
+        expand.append(status, moreBtn);
+        row.appendChild(expand);
+        count.textContent = '접기';
+        loadMore();
+      } else if (expand.hidden) {
+        expand.hidden = false;
+        count.textContent = '접기';
+      } else {
+        expand.hidden = true;
+        count.textContent = label;
+      }
+    });
+
     row.append(rank, mult, combos, count);
     return row;
   }
@@ -718,6 +851,8 @@
     if (reset) {
       tiersShown = 0;
       popTiersEl.innerHTML = '';
+      for (const handle of activeEnums) handle.cancel();
+      activeEnums.clear();
     }
     const list = popSortSel.value === 'asc' ? [...tiersCache].reverse() : tiersCache;
     for (const t of list.slice(tiersShown, tiersShown + 25)) popTiersEl.appendChild(tierRowEl(t));
@@ -746,53 +881,17 @@
     });
   });
 
-  // ----- 당첨금 세금 -----
+  // ----- 당첨금 세금 (세후 기대값·당첨 이력 툴팁용) -----
   // 200만원 이하 비과세(과세최저한). 초과 시 구입비 1,000원 공제 후 3억 이하분 22%, 초과분 33% 원천징수.
   function lottoTax(amount) {
-    if (amount <= 2000000) return { tax: 0, low: 0, high: 0, taxable: 0 };
+    if (amount <= 2000000) return { tax: 0 };
     const taxable = amount - 1000;
     const low = Math.floor(Math.min(taxable, 300000000) * 0.22);
     const high = Math.floor(Math.max(0, taxable - 300000000) * 0.33);
-    return { tax: low + high, low, high, taxable };
+    return { tax: low + high };
   }
 
-  const taxError = document.getElementById('tax-error');
-  const taxResult = document.getElementById('tax-result');
-
-  document.getElementById('tax-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    taxError.hidden = true;
-    taxResult.hidden = true;
-    const amount = Number(document.getElementById('tax-input').value.replace(/[^0-9]/g, ''));
-    if (!amount) {
-      taxError.textContent = '당첨금을 숫자로 입력해 주세요.';
-      taxError.hidden = false;
-      return;
-    }
-    const t = lottoTax(amount);
-    taxResult.innerHTML = '';
-    const line = (label, value, cls) => {
-      const div = document.createElement('div');
-      if (cls) div.className = cls;
-      const l = document.createElement('span');
-      l.textContent = label;
-      const v = document.createElement('span');
-      v.textContent = value;
-      div.append(l, v);
-      taxResult.appendChild(div);
-    };
-    line('당첨금', amount.toLocaleString('ko-KR') + '원');
-    if (t.tax === 0) {
-      line('세금', '0원 (200만원 이하 비과세)');
-    } else {
-      line('과세표준 (구입비 1,000원 공제)', t.taxable.toLocaleString('ko-KR') + '원');
-      line('3억원 이하분 세금 (22%)', '−' + t.low.toLocaleString('ko-KR') + '원');
-      if (t.high > 0) line('3억원 초과분 세금 (33%)', '−' + t.high.toLocaleString('ko-KR') + '원');
-      line('세금 합계 (실효세율 ' + ((t.tax / amount) * 100).toFixed(1) + '%)', '−' + t.tax.toLocaleString('ko-KR') + '원');
-    }
-    line('실수령액', (amount - t.tax).toLocaleString('ko-KR') + '원', 'tax-final');
-    taxResult.hidden = false;
-  });
+  document.getElementById('ev-tax').addEventListener('change', renderEvTable);
 
   // 한 게임(6개 번호)을 전 회차와 대조해 등수별 히트 목록을 반환
   function findHits(numbers, maxRank) {
@@ -942,9 +1041,11 @@
   } else {
     document.getElementById('pop-error').hidden = false;
     document.getElementById('pop-content').hidden = true;
+    document.getElementById('ev-error').hidden = false;
     document.getElementById('ev-block').hidden = true;
   }
-  if (location.hash === '#pop' || location.hash === '#tax') showTab(location.hash.slice(1));
+  const initHash = location.hash === '#tax' ? '#ev' : location.hash; // 이전 탭 링크(#tax) 호환
+  if (initHash === '#pop' || initHash === '#ev') showTab(initHash.slice(1));
 
   copyBtn.addEventListener('click', async () => {
     if (!lastResult) return;

@@ -156,6 +156,18 @@ const LottoPop = (() => {
     return (lo / dist.length) * 100;
   }
 
+  // 청크 사이 양보용 스케줄러. setTimeout은 백그라운드 탭에서 1Hz로 스로틀되어 스캔이 수 분씩
+  // 걸리게 되므로, 스로틀 대상이 아닌 MessageChannel 태스크로 다음 청크를 예약한다.
+  function defer(fn) {
+    if (typeof MessageChannel === 'undefined') {
+      setTimeout(fn, 0);
+      return;
+    }
+    const ch = new MessageChannel();
+    ch.port1.onmessage = () => { ch.port1.close(); fn(); };
+    ch.port2.postMessage(0);
+  }
+
   // ----- 전 조합 스캔 -----
   // 8,145,060개 전 조합을 청크로 나눠 훑으며 log-점수 히스토그램(버킷별 개수 + 예시 저장소 표본)을 만든다.
   // 조합당 exp/log 호출을 피하려고 버킷 키는 선형 예측값(log 점수)에서 바로 만든다.
@@ -168,7 +180,7 @@ const LottoPop = (() => {
     const beta = model.featBeta;
     const logNorm = Math.log(model.norm);
     let a = 1, b = 2, c = 3, d = 4, e = 5, f = 6;
-    let done = 0, cancelled = false, timer = null;
+    let done = 0, cancelled = false;
 
     function step() {
       if (cancelled) return;
@@ -202,15 +214,16 @@ const LottoPop = (() => {
         }
       }
       if (onProgress) onProgress(done / TOTAL_COMBOS);
-      timer = setTimeout(step, 0);
+      defer(step);
     }
 
-    timer = setTimeout(step, 0);
-    return { cancel: () => { cancelled = true; clearTimeout(timer); } };
+    defer(step);
+    return { cancel: () => { cancelled = true; } };
   }
 
   // 스캔 결과 전체를 인기 높은 순 티어 목록으로 변환한다. 표시 배수(소수 2자리)가 같은
-  // 인접 버킷은 하나로 합친다. 반환: [{mult, count, combos(예시 최대 2), rankStart(1=최고 인기)}]
+  // 인접 버킷은 하나로 합친다. keyLo/keyHi는 티어에 속한 버킷 키 범위(enumerateTier용).
+  // 반환: [{mult, count, combos(예시 최대 2), rankStart(1=최고 인기), keyLo, keyHi}]
   function buildTiers(scanResult) {
     const tiers = [];
     let rank = 1;
@@ -221,13 +234,53 @@ const LottoPop = (() => {
       const last = tiers[tiers.length - 1];
       if (last && last.mult.toFixed(2) === mult.toFixed(2)) {
         last.count += bk.c;
+        last.keyLo = k; // 키는 내림차순으로 순회하므로 마지막이 최소
         if (last.combos.length < 2) last.combos.push(bk.ex[0]);
       } else {
-        tiers.push({ mult, count: bk.c, combos: bk.ex.slice(0, 2), rankStart: rank });
+        tiers.push({ mult, count: bk.c, combos: bk.ex.slice(0, 2), rankStart: rank, keyLo: k, keyHi: k });
       }
       rank += bk.c;
     }
     return tiers;
+  }
+
+  // 티어(버킷 키 범위 keyLo~keyHi)에 속한 조합을 사전식 순서로 열거한다. limit개를 찾으면
+  // 멈추고 재개용 state를 넘겨주므로 "더 불러오기"로 이어서 열거할 수 있다.
+  // onDone({combos, state, exhausted}) — exhausted면 전 조합 순회가 끝난 것. cancel()로 중단.
+  function enumerateTier(model, tier, { limit = 60, state = null, chunkSize = 400000, onDone }) {
+    let { a, b, c, d, e, f } = state || { a: 1, b: 2, c: 3, d: 4, e: 5, f: 6 };
+    const nums = [0, 0, 0, 0, 0, 0];
+    const beta = model.featBeta;
+    const logNorm = Math.log(model.norm);
+    const combos = [];
+    let cancelled = false;
+
+    function step() {
+      if (cancelled) return;
+      let n = 0;
+      while (n < chunkSize) {
+        nums[0] = a; nums[1] = b; nums[2] = c; nums[3] = d; nums[4] = e; nums[5] = f;
+        const x = features(nums);
+        let eta = -logNorm;
+        for (let i = 0; i < x.length; i++) eta += beta[i] * x[i];
+        const key = Math.round(eta * 1000);
+        if (key >= tier.keyLo && key <= tier.keyHi) combos.push([a, b, c, d, e, f]);
+        n++;
+        // 다음 조합으로 이동한 뒤 종료 검사 — state가 항상 "다음에 볼 조합"을 가리키게 한다
+        if (f < 45) f++;
+        else if (e < 44) { e++; f = e + 1; }
+        else if (d < 43) { d++; e = d + 1; f = e + 1; }
+        else if (c < 42) { c++; d = c + 1; e = d + 1; f = e + 1; }
+        else if (b < 41) { b++; c = b + 1; d = c + 1; e = d + 1; f = e + 1; }
+        else if (a < 40) { a++; b = a + 1; c = b + 1; d = c + 1; e = d + 1; f = e + 1; }
+        else { onDone({ combos, state: null, exhausted: true }); return; }
+        if (combos.length >= limit) { onDone({ combos, state: { a, b, c, d, e, f }, exhausted: false }); return; }
+      }
+      defer(step);
+    }
+
+    defer(step);
+    return { cancel: () => { cancelled = true; } };
   }
 
   // 조합의 특성별 인기 기여 분해. x가 0이 아닌 특성만 반환: [{short, unit, x, mult}]
@@ -261,20 +314,24 @@ const LottoPop = (() => {
   const MATCH4_COMBOS = 11115;  // C(6,4)·C(39,2)
   const MATCH3_COMBOS = 182780; // C(6,3)·C(39,3)
 
-  function expectedValue(model, params, nums) {
-    return expectedValueAt(params, score(model, nums));
+  function expectedValue(model, params, nums, taxFn) {
+    return expectedValueAt(params, score(model, nums), taxFn);
   }
 
-  // 인기도 배수 r을 직접 지정해 기대값을 계산 (비교 표 등에 사용)
-  function expectedValueAt(params, r) {
+  // 인기도 배수 r을 직접 지정해 기대값을 계산 (비교 표 등에 사용).
+  // taxFn(당첨금)→세금을 주면 세후 기대값: 등수별 기대 당첨금(당첨 시 1인당 금액)에 세금을 적용한다.
+  // 세율 구간이 등수별로 사실상 고정이라(1등 ≫ 3억, 2등 22% 구간, 3~5등 비과세) 선형 근사가 정확하다.
+  function expectedValueAt(params, r, taxFn) {
     const mix = params.autoShare + (1 - params.autoShare) * r; // 이 조합의 구매율 (평균 조합 = 1)
     const share = (lam) => (lam < 1e-9 ? 1 : (1 - Math.exp(-lam)) / lam);
+    const net = (amt) => (taxFn ? amt - taxFn(amt) : amt);
     const perComboWinners = params.games / TOTAL_COMBOS;
-    const ev1 = (1 / TOTAL_COMBOS) * params.pool1 * share(perComboWinners * mix);
-    const ev2 = (6 / TOTAL_COMBOS) * params.pool2 * share(6 * perComboWinners * mix);
-    const ev3 = (228 / TOTAL_COMBOS) * params.pool3 * share(228 * perComboWinners * mix);
-    const ev4 = (MATCH4_COMBOS / TOTAL_COMBOS) * 50000;
-    const ev5 = (MATCH3_COMBOS / TOTAL_COMBOS) * 5000;
+    // pool × share(λ) = 당첨됐을 때 받는 1인당 금액의 기댓값 (λ = 나 외 동시 당첨자 수 기대치)
+    const ev1 = (1 / TOTAL_COMBOS) * net(params.pool1 * share(perComboWinners * mix));
+    const ev2 = (6 / TOTAL_COMBOS) * net(params.pool2 * share(6 * perComboWinners * mix));
+    const ev3 = (228 / TOTAL_COMBOS) * net(params.pool3 * share(228 * perComboWinners * mix));
+    const ev4 = (MATCH4_COMBOS / TOTAL_COMBOS) * net(50000);
+    const ev5 = (MATCH3_COMBOS / TOTAL_COMBOS) * net(5000);
     return { total: ev1 + ev2 + ev3 + ev4 + ev5, ev1, ev2, ev3, ev4, ev5 };
   }
 
@@ -289,5 +346,5 @@ const LottoPop = (() => {
     return (below / scanResult.total) * 100;
   }
 
-  return { TOTAL_COMBOS, FEATURES, features, fit, score, sampleDist, percentile, scan, scanPercentile, buildTiers, breakdown, numberStats, expectedValue, expectedValueAt };
+  return { TOTAL_COMBOS, FEATURES, features, fit, score, sampleDist, percentile, scan, scanPercentile, buildTiers, enumerateTier, breakdown, numberStats, expectedValue, expectedValueAt };
 })();
