@@ -81,6 +81,7 @@
   .slip {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 10px;
     background: var(--card);
     border: 1px solid var(--line);
@@ -159,6 +160,39 @@
   .ball.dim { opacity: 0.25; filter: grayscale(0.6); text-shadow: none; }
   .plus { color: var(--muted); font-weight: 700; margin: 0 2px; }
   #copy-status { margin-left: 10px; font-size: 0.9rem; color: var(--muted); }
+  .pop-badge {
+    margin-left: auto;
+    font-size: 0.78rem;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 3px 10px;
+    white-space: nowrap;
+  }
+  #popularity { margin-top: 28px; }
+  #scan-btn { flex: 0 0 auto; font-size: 0.9rem; padding: 8px 14px; }
+  .pop-desc { color: var(--muted); font-size: 0.88rem; margin: 6px 0 12px; }
+  #scan-progress { width: 100%; margin: 4px 0 10px; }
+  .pop-group-head { font-weight: 700; margin: 18px 0 8px; }
+  .pop-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+  }
+  .pop-mult { flex: 0 0 auto; width: 60px; font-weight: 800; text-align: center; }
+  .pop-combos { display: flex; flex-direction: column; gap: 6px; }
+  .pop-combos .hit-balls { margin-top: 0; }
+  .pop-count { margin-left: auto; color: var(--muted); font-size: 0.8rem; }
+  #pop-method { margin-top: 14px; font-size: 0.85rem; color: var(--muted); }
+  #pop-method summary { cursor: pointer; }
+  #pop-method td { padding: 2px 10px 2px 0; }
   .error { color: #d64545; margin-top: 16px; }
   .note { margin-top: 28px; font-size: 0.85rem; color: var(--muted); }
 </style>
@@ -201,12 +235,34 @@
     <div id="hist-games"></div>
   </section>
 
+  <section id="popularity" hidden>
+    <div class="hist-head">
+      <h2>📊 조합 인기도</h2>
+      <button id="scan-btn" type="button">전체 814만 조합 분석</button>
+    </div>
+    <p class="pop-desc">역대 1등 당첨자 중 번호를 직접 고른(수동·반자동) 사람 수와 판매량의 관계로 "사람들이 어떤 조합을 즐겨 사는지"를 추정합니다. ×1.0이 평균이고, 인기도가 낮은 조합일수록 1등이 됐을 때 나눠 가질 사람이 적은 경향이 있습니다. 당첨 확률 자체는 모든 조합이 똑같습니다.</p>
+    <progress id="scan-progress" max="1" value="0" hidden></progress>
+    <div id="pop-results" hidden>
+      <p class="pop-group-head">🔥 사람들이 많이 사는 유형</p>
+      <div id="pop-most"></div>
+      <p class="pop-group-head">🥷 사람들이 가장 적게 사는 유형</p>
+      <div id="pop-least"></div>
+    </div>
+    <details id="pop-method">
+      <summary>어떻게 추정하나요?</summary>
+      <p>자동 구매는 균등 무작위라서 조합 선호는 수동 구매에서만 생깁니다. 1등 당첨자의 자동/수동 구분이 집계되는 262회부터 매 회차의 수동·반자동 1등 당첨자 수를 그 회차 판매량 기준 기대치와 비교하면 당첨 조합의 상대 인기도가 나오고, 이를 조합 특성에 대한 푸아송 회귀로 일반화했습니다. 학습된 특성별 효과(+1단위당 인기 배수):</p>
+      <table><tbody id="pop-coefs"></tbody></table>
+      <p>한계: 특성으로 설명되는 경향만 반영하므로 특정 유명 조합(예: 7·14·21·28·35·42)의 개별 인기는 과소평가될 수 있습니다. 자동 구매가 판매의 다수를 차지해 모든 조합에 고르게 깔리므로 "판매량 0"인 조합은 없습니다.</p>
+    </details>
+  </section>
+
   <p id="message" class="error" hidden></p>
 
   <p class="note">번호는 입력 문자열의 SHA-256 해시로 계산되며 무작위 추첨이 아닙니다. 재미로만 이용하세요.</p>
 </main>
 
 <script src="draws.js"></script>
+<script src="popularity.js"></script>
 <script>
   const GAME_LABELS = ['A', 'B', 'C', 'D', 'E'];
 
@@ -303,6 +359,7 @@
         balls.appendChild(ball);
       });
       slip.appendChild(balls);
+      if (ensurePopModel()) slip.appendChild(popBadgeEl(numbers));
       slips.appendChild(slip);
     });
     copyStatus.textContent = '';
@@ -324,9 +381,118 @@
   function getDraws() {
     if (draws) return draws;
     if (typeof LOTTO_DRAWS === 'undefined') return null;
-    draws = LOTTO_DRAWS.map((r) => ({ epsd: r[0], ymd: r[1], nums: r.slice(2, 8), bns: r[8], amt: r.slice(9) }));
+    draws = LOTTO_DRAWS.map((r) => ({
+      epsd: r[0], ymd: r[1], nums: r.slice(2, 8), bns: r[8],
+      amt: r.slice(9, 14), cnt: r.slice(14, 19), sales: r[19],
+      auto1: r[20], manual1: r[21], semi1: r[22],
+    }));
     return draws;
   }
+
+  // ----- 조합 인기도 (popularity.js 모델) -----
+  const popSection = document.getElementById('popularity');
+  const scanBtn = document.getElementById('scan-btn');
+  const scanProgress = document.getElementById('scan-progress');
+  const popResults = document.getElementById('pop-results');
+  const popMost = document.getElementById('pop-most');
+  const popLeast = document.getElementById('pop-least');
+  let popModel = null, popDist = null, scanResult = null, scanHandle = null;
+
+  function ensurePopModel() {
+    if (popModel) return true;
+    const ds = getDraws();
+    if (!ds || typeof LottoPop === 'undefined') return false;
+    // 1등 자동/수동 구분이 집계되는 262회부터 학습 (이 구간 게임 가격은 1,000원)
+    const data = ds
+      .filter((d) => d.epsd >= 262)
+      .map((d) => ({ epsd: d.epsd, nums: d.nums, y: d.manual1 + d.semi1, games: d.sales / 1000 }));
+    popModel = LottoPop.fit(data);
+    popDist = LottoPop.sampleDist(popModel);
+    renderPopCoefs();
+    return true;
+  }
+
+  function popScore(nums) {
+    const s = LottoPop.score(popModel, nums);
+    // 전 조합 스캔을 마쳤으면 정확한 백분위, 아니면 무작위 표본 기반 백분위
+    const pct = scanResult ? LottoPop.scanPercentile(scanResult, s) : LottoPop.percentile(popDist, s);
+    return { s, pct };
+  }
+
+  // 백분위는 "전체 중 이 조합보다 덜 팔리는 비율" 한 방향으로만 말한다 (상위/하위 혼용 방지)
+  function popTitle(s, pct) {
+    const p = Math.min(99, Math.max(1, Math.round(pct)));
+    return '수동 구매 인기도: 평균 조합의 ' + s.toFixed(2) + '배 (역대 1등 수동·반자동 당첨자 통계로 추정). ' +
+      '전체 조합 중 약 ' + p + '%가 이 조합보다 덜 팔립니다. ' +
+      '낮을수록 1등이 돼도 나눠 가질 사람이 적은 경향이 있으며, 당첨 확률은 모든 조합이 동일합니다.';
+  }
+
+  function popBadgeEl(nums) {
+    const { s, pct } = popScore(nums);
+    const el = document.createElement('span');
+    el.className = 'pop-badge';
+    const icon = pct <= 20 ? '🥷' : pct >= 80 ? '🔥' : '🙂';
+    el.textContent = icon + ' ×' + s.toFixed(2);
+    el.title = popTitle(s, pct);
+    return el;
+  }
+
+  function renderPopCoefs() {
+    const tbody = document.getElementById('pop-coefs');
+    tbody.innerHTML = '';
+    LottoPop.FEATURES.forEach((f, i) => {
+      const tr = document.createElement('tr');
+      const label = document.createElement('td');
+      label.textContent = f.label;
+      const mult = document.createElement('td');
+      mult.textContent = '×' + Math.exp(popModel.featBeta[i]).toFixed(2);
+      tr.append(label, mult);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function fillPopList(container, groups) {
+    container.innerHTML = '';
+    for (const g of groups) {
+      const row = document.createElement('div');
+      row.className = 'pop-row';
+      const mult = document.createElement('span');
+      mult.className = 'pop-mult';
+      mult.textContent = '×' + g.mult.toFixed(2);
+      const combos = document.createElement('div');
+      combos.className = 'pop-combos';
+      g.combos.forEach((nums) => {
+        const balls = document.createElement('div');
+        balls.className = 'hit-balls';
+        nums.forEach((n) => balls.appendChild(ballEl(n, true)));
+        combos.appendChild(balls);
+      });
+      const count = document.createElement('span');
+      count.className = 'pop-count';
+      count.textContent = '이 인기도의 조합 ' + g.count.toLocaleString('ko-KR') + '개';
+      row.append(mult, combos, count);
+      container.appendChild(row);
+    }
+  }
+
+  scanBtn.addEventListener('click', () => {
+    if (!ensurePopModel() || scanHandle || scanResult) return;
+    scanBtn.disabled = true;
+    scanProgress.hidden = false;
+    scanHandle = LottoPop.scan(popModel, {
+      onProgress: (p) => { scanProgress.value = p; },
+      onDone: (res) => {
+        scanResult = res;
+        scanHandle = null;
+        scanProgress.hidden = true;
+        scanBtn.hidden = true;
+        const ex = LottoPop.extremes(res, 6);
+        fillPopList(popMost, ex.most);
+        fillPopList(popLeast, ex.least);
+        popResults.hidden = false;
+      },
+    });
+  });
 
   // 한 게임(6개 번호)을 전 회차와 대조해 등수별 히트 목록을 반환
   function findHits(numbers, maxRank) {
@@ -387,10 +553,25 @@
     const drawInfo = document.createElement('span');
     drawInfo.className = 'hit-draw';
     drawInfo.textContent = hit.draw.epsd + '회 · ' + fmtDate(hit.draw.ymd);
+    const cnt = document.createElement('span');
+    cnt.className = 'hit-draw';
+    cnt.textContent = RANK_LABELS[hit.rank] + ' ' + hit.draw.cnt[hit.rank - 1].toLocaleString('ko-KR') + '명';
+    if (hit.rank === 1 && hit.draw.auto1 + hit.draw.manual1 + hit.draw.semi1 > 0) {
+      cnt.title = '자동 ' + hit.draw.auto1 + ' · 수동 ' + hit.draw.manual1 + ' · 반자동 ' + hit.draw.semi1;
+    }
     const amt = document.createElement('span');
     amt.className = 'hit-amt';
     amt.textContent = fmtWon(hit.amount);
-    meta.append(rank, drawInfo, amt);
+    meta.append(rank, drawInfo, cnt);
+    if (popModel) {
+      const { s, pct } = popScore(hit.draw.nums);
+      const pop = document.createElement('span');
+      pop.className = 'hit-draw';
+      pop.textContent = '×' + s.toFixed(2);
+      pop.title = '이 회차 당첨 조합의 ' + popTitle(s, pct);
+      meta.appendChild(pop);
+    }
+    meta.appendChild(amt);
     const balls = document.createElement('div');
     balls.className = 'hit-balls';
     hit.draw.nums.forEach((n) => balls.appendChild(ballEl(n, set.has(n))));
@@ -448,6 +629,12 @@
   }
 
   maxRankSelect.addEventListener('change', renderHistory);
+
+  // 데이터가 있으면 인기도 섹션을 켜고 모델을 미리 적합해 둔다 (수십 ms 수준)
+  if (getDraws()) {
+    popSection.hidden = false;
+    ensurePopModel();
+  }
 
   copyBtn.addEventListener('click', async () => {
     if (!lastResult) return;
