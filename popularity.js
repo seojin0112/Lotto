@@ -15,15 +15,16 @@ const LottoPop = (() => {
   // 생일(월·일) 효과를 잡으면서도, 합계 같은 연속 특성과의 공선성으로 인한
   // 훈련 범위 밖 외삽(예: "높은 합 + 생일 번호 다수" 조합)을 피하기 위한 구성이다.
   // 연속 쌍 개수는 원자료에서 U자형(0쌍 > 1~2쌍 회피, 3쌍 이상 선호)이라 선형이 아닌 범주형으로 넣는다.
+  // short/unit은 조합 검색의 특징 분해 표시용 (unit이 null이면 여부 특성)
   const FEATURES = [
-    { key: 'small', label: '12 이하 번호 개수(월·일 범위)' },
-    { key: 'mid', label: '13~31 번호 개수(일 범위)' },
-    { key: 'high', label: '40 이상 번호 개수' },
-    { key: 'consec1', label: '연속 번호 1쌍(여부)' },
-    { key: 'consec2', label: '연속 번호 2쌍(여부)' },
-    { key: 'consec3', label: '연속 번호 3쌍 이상(여부)' },
-    { key: 'mult7', label: '7의 배수 개수' },
-    { key: 'lastd', label: '끝자리 같은 쌍 개수' },
+    { key: 'small', label: '12 이하 번호 개수(월·일 범위)', short: '12 이하', unit: '개' },
+    { key: 'mid', label: '13~31 번호 개수(일 범위)', short: '13~31', unit: '개' },
+    { key: 'high', label: '40 이상 번호 개수', short: '40 이상', unit: '개' },
+    { key: 'consec1', label: '연속 번호 1쌍(여부)', short: '연속 1쌍', unit: null },
+    { key: 'consec2', label: '연속 번호 2쌍(여부)', short: '연속 2쌍', unit: null },
+    { key: 'consec3', label: '연속 번호 3쌍 이상(여부)', short: '연속 3쌍+', unit: null },
+    { key: 'mult7', label: '7의 배수 개수', short: '7의 배수', unit: '개' },
+    { key: 'lastd', label: '끝자리 같은 쌍 개수', short: '같은 끝자리', unit: '쌍' },
   ];
 
   function features(nums) {
@@ -208,26 +209,73 @@ const LottoPop = (() => {
     return { cancel: () => { cancelled = true; clearTimeout(timer); } };
   }
 
-  // 스캔 결과에서 최하위/최상위 인기도 그룹을 뽑는다. 표시 배수(소수 2자리)가 같은
-  // 인접 버킷은 하나로 합친다. 반환: [{mult, count, combos(예시 최대 2)}] — take개 그룹
-  function extremes(scanResult, take = 6) {
-    const walk = (keys) => {
-      const groups = [];
-      for (const k of keys) {
-        const bk = scanResult.buckets.get(k);
-        const mult = Math.exp(k / 1000);
-        const last = groups[groups.length - 1];
-        if (last && last.mult.toFixed(2) === mult.toFixed(2)) {
-          last.count += bk.c;
-          if (last.combos.length < 2) last.combos.push(bk.ex[0]);
-        } else {
-          if (groups.length === take) break;
-          groups.push({ mult, count: bk.c, combos: bk.ex.slice(0, 2) });
-        }
+  // 스캔 결과 전체를 인기 높은 순 티어 목록으로 변환한다. 표시 배수(소수 2자리)가 같은
+  // 인접 버킷은 하나로 합친다. 반환: [{mult, count, combos(예시 최대 2), rankStart(1=최고 인기)}]
+  function buildTiers(scanResult) {
+    const tiers = [];
+    let rank = 1;
+    for (let i = scanResult.keys.length - 1; i >= 0; i--) {
+      const k = scanResult.keys[i];
+      const bk = scanResult.buckets.get(k);
+      const mult = Math.exp(k / 1000);
+      const last = tiers[tiers.length - 1];
+      if (last && last.mult.toFixed(2) === mult.toFixed(2)) {
+        last.count += bk.c;
+        if (last.combos.length < 2) last.combos.push(bk.ex[0]);
+      } else {
+        tiers.push({ mult, count: bk.c, combos: bk.ex.slice(0, 2), rankStart: rank });
       }
-      return groups;
-    };
-    return { least: walk(scanResult.keys), most: walk([...scanResult.keys].reverse()) };
+      rank += bk.c;
+    }
+    return tiers;
+  }
+
+  // 조합의 특성별 인기 기여 분해. x가 0이 아닌 특성만 반환: [{short, unit, x, mult}]
+  function breakdown(model, nums) {
+    const x = features(nums);
+    return FEATURES
+      .map((f, i) => ({ short: f.short, unit: f.unit, x: x[i], mult: Math.exp(model.featBeta[i] * x[i]) }))
+      .filter((b) => b.x !== 0);
+  }
+
+  // 번호별 수동 선택 인기도(전체 평균 = 1). data는 fit()과 같은 형식.
+  // 번호 n이 포함된 당첨 조합의 수동 당첨자 수를 기대치 대비 비율로 집계한 실측 통계다.
+  function numberStats(data) {
+    const act = new Array(46).fill(0), exp = new Array(46).fill(0);
+    let totAct = 0, totExp = 0;
+    for (const d of data) {
+      const e = d.games / TOTAL_COMBOS;
+      totAct += d.y;
+      totExp += e;
+      for (const n of d.nums) { act[n] += d.y; exp[n] += e; }
+    }
+    const base = totAct / totExp;
+    return Array.from({ length: 46 }, (_, n) => (n >= 1 && exp[n] > 0 ? act[n] / exp[n] / base : 0));
+  }
+
+  // ----- 예상 기대값 -----
+  // 1,000원 1게임의 기대 환급액(세전). 4·5등은 고정 금액이고 1~3등은 당첨자끼리 나누므로,
+  // 이 조합을 산 사람이 적을수록(인기도가 낮을수록) 기대값이 올라간다.
+  // params: {games: 회차 판매 게임 수, pool1~3: 등수별 총 배분액, autoShare: 자동 구매 비중} — 최근 회차 평균으로 추정
+  // 동시 당첨자 K ~ Poisson(λ)일 때 E[pool/(K+1)] = pool·(1−e^−λ)/λ 를 쓴다.
+  const MATCH4_COMBOS = 11115;  // C(6,4)·C(39,2)
+  const MATCH3_COMBOS = 182780; // C(6,3)·C(39,3)
+
+  function expectedValue(model, params, nums) {
+    return expectedValueAt(params, score(model, nums));
+  }
+
+  // 인기도 배수 r을 직접 지정해 기대값을 계산 (비교 표 등에 사용)
+  function expectedValueAt(params, r) {
+    const mix = params.autoShare + (1 - params.autoShare) * r; // 이 조합의 구매율 (평균 조합 = 1)
+    const share = (lam) => (lam < 1e-9 ? 1 : (1 - Math.exp(-lam)) / lam);
+    const perComboWinners = params.games / TOTAL_COMBOS;
+    const ev1 = (1 / TOTAL_COMBOS) * params.pool1 * share(perComboWinners * mix);
+    const ev2 = (6 / TOTAL_COMBOS) * params.pool2 * share(6 * perComboWinners * mix);
+    const ev3 = (228 / TOTAL_COMBOS) * params.pool3 * share(228 * perComboWinners * mix);
+    const ev4 = (MATCH4_COMBOS / TOTAL_COMBOS) * 50000;
+    const ev5 = (MATCH3_COMBOS / TOTAL_COMBOS) * 5000;
+    return { total: ev1 + ev2 + ev3 + ev4 + ev5, ev1, ev2, ev3, ev4, ev5 };
   }
 
   // 스캔 히스토그램 기반 정확한 백분위
@@ -241,5 +289,5 @@ const LottoPop = (() => {
     return (below / scanResult.total) * 100;
   }
 
-  return { TOTAL_COMBOS, FEATURES, features, fit, score, sampleDist, percentile, scan, extremes, scanPercentile };
+  return { TOTAL_COMBOS, FEATURES, features, fit, score, sampleDist, percentile, scan, scanPercentile, buildTiers, breakdown, numberStats, expectedValue, expectedValueAt };
 })();

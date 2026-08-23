@@ -37,6 +37,18 @@
   main { max-width: 560px; margin: 0 auto; }
   h1 { font-size: 1.6rem; margin: 8px 0 4px; }
   .desc { color: var(--muted); margin: 0 0 20px; font-size: 0.95rem; }
+  .tabs { display: flex; gap: 18px; border-bottom: 1px solid var(--line); margin: 14px 0 20px; }
+  .tab-btn {
+    flex: 0 0 auto;
+    background: none;
+    color: var(--muted);
+    border-radius: 0;
+    border-bottom: 2px solid transparent;
+    padding: 8px 2px 10px;
+    font-size: 1rem;
+  }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+  .tab-btn:active { transform: none; }
   form {
     display: flex;
     flex-wrap: wrap;
@@ -46,7 +58,7 @@
     border-radius: 14px;
     padding: 14px;
   }
-  #seed {
+  #seed, #pop-search-input, #tax-input {
     flex: 1 1 100%;
     padding: 12px 14px;
     font-size: 1rem;
@@ -55,8 +67,9 @@
     background: var(--bg);
     color: var(--text);
   }
-  #seed:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  #games, #max-rank {
+  #seed:focus, #pop-search-input:focus, #tax-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  #pop-search-input, #tax-input { flex: 1 1 auto; }
+  #games, #max-rank, #pop-sort {
     flex: 0 0 auto;
     padding: 10px 12px;
     font-size: 0.95rem;
@@ -170,11 +183,28 @@
     padding: 3px 10px;
     white-space: nowrap;
   }
-  #popularity { margin-top: 28px; }
-  #scan-btn { flex: 0 0 auto; font-size: 0.9rem; padding: 8px 14px; }
+  #tab-pop h2, #tab-tax h2 { font-size: 1.15rem; margin: 26px 0 4px; }
+  #pop-content > h2:first-child, #ev-block > h2:first-child { margin-top: 0; }
   .pop-desc { color: var(--muted); font-size: 0.88rem; margin: 6px 0 12px; }
+  .pop-note { color: var(--muted); font-size: 0.85rem; margin: 4px 0 12px; }
+  #num-map { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .num-cell { border: 1px solid var(--line); border-radius: 10px; text-align: center; padding: 6px 2px; }
+  .num-cell b { display: block; font-size: 1rem; }
+  .num-cell span { font-size: 0.72rem; color: var(--muted); }
+  #pop-search button, #tax-form button { flex: 0 0 auto; }
+  #pop-search-result { margin-top: 12px; }
+  .pop-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .pop-chip {
+    font-size: 0.78rem;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 2px 10px;
+    background: var(--card);
+  }
+  .pop-search-text { font-size: 0.9rem; margin: 10px 0 0; }
+  #scan-btn { width: 100%; }
   #scan-progress { width: 100%; margin: 4px 0 10px; }
-  .pop-group-head { font-weight: 700; margin: 18px 0 8px; }
   .pop-row {
     display: flex;
     align-items: center;
@@ -186,13 +216,30 @@
     padding: 10px 14px;
     margin-bottom: 8px;
   }
-  .pop-mult { flex: 0 0 auto; width: 60px; font-weight: 800; text-align: center; }
+  .pop-rank { flex: 0 0 auto; width: 108px; color: var(--muted); font-size: 0.78rem; }
+  .pop-mult { flex: 0 0 auto; width: 56px; font-weight: 800; text-align: center; }
   .pop-combos { display: flex; flex-direction: column; gap: 6px; }
   .pop-combos .hit-balls { margin-top: 0; }
   .pop-count { margin-left: auto; color: var(--muted); font-size: 0.8rem; }
-  #pop-method { margin-top: 14px; font-size: 0.85rem; color: var(--muted); }
+  #pop-more {
+    width: 100%;
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--line);
+    font-weight: 600;
+  }
+  #pop-method { margin-top: 16px; font-size: 0.85rem; color: var(--muted); }
   #pop-method summary { cursor: pointer; }
   #pop-method td { padding: 2px 10px 2px 0; }
+  .info-table { border-collapse: collapse; font-size: 0.88rem; margin: 8px 0 4px; }
+  .info-table th, .info-table td { border: 1px solid var(--line); padding: 6px 12px; text-align: right; }
+  .info-table th, .info-table td:first-child { text-align: left; }
+  .info-table th { background: var(--card); font-weight: 700; }
+  .tax-lines { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 12px; font-size: 0.92rem; }
+  .tax-lines div { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; }
+  .tax-lines .tax-final { font-weight: 800; border-top: 1px solid var(--line); margin-top: 6px; padding-top: 8px; }
+  .info-list { color: var(--muted); font-size: 0.88rem; padding-left: 18px; margin: 6px 0 14px; }
+  .info-list li { margin-bottom: 4px; }
   .error { color: #d64545; margin-top: 16px; }
   .note { margin-top: 28px; font-size: 0.85rem; color: var(--muted); }
 </style>
@@ -200,6 +247,13 @@
 <body>
 <main>
   <h1>🎱 로또 번호 변환기</h1>
+  <nav class="tabs">
+    <button type="button" class="tab-btn active" data-tab="convert">🎱 번호 변환</button>
+    <button type="button" class="tab-btn" data-tab="pop">📊 조합 인기도</button>
+    <button type="button" class="tab-btn" data-tab="tax">💰 기대값·세금</button>
+  </nav>
+
+  <div id="tab-convert">
   <p class="desc">아무 문자열이나 입력하면 고유한 로또 번호로 바뀝니다. 같은 문자열은 언제 어디서 뽑아도 항상 같은 번호가 나옵니다.</p>
 
   <form id="form">
@@ -235,28 +289,71 @@
     <div id="hist-games"></div>
   </section>
 
-  <section id="popularity" hidden>
-    <div class="hist-head">
-      <h2>📊 조합 인기도</h2>
-      <button id="scan-btn" type="button">전체 814만 조합 분석</button>
-    </div>
+  <p id="message" class="error" hidden></p>
+  </div>
+
+  <section id="tab-pop" hidden>
     <p class="pop-desc">역대 1등 당첨자 중 번호를 직접 고른(수동·반자동) 사람 수와 판매량의 관계로 "사람들이 어떤 조합을 즐겨 사는지"를 추정합니다. ×1.0이 평균이고, 인기도가 낮은 조합일수록 1등이 됐을 때 나눠 가질 사람이 적은 경향이 있습니다. 당첨 확률 자체는 모든 조합이 똑같습니다.</p>
-    <progress id="scan-progress" max="1" value="0" hidden></progress>
-    <div id="pop-results" hidden>
-      <p class="pop-group-head">🔥 사람들이 많이 사는 유형</p>
-      <div id="pop-most"></div>
-      <p class="pop-group-head">🥷 사람들이 가장 적게 사는 유형</p>
-      <div id="pop-least"></div>
+    <p id="pop-error" class="error" hidden>당첨번호 데이터(draws.js)가 없거나 이전 버전이라 인기도를 계산할 수 없습니다. 강력 새로고침(Ctrl+F5)을 해보세요.</p>
+    <div id="pop-content">
+      <h2>🗺️ 숫자별 인기 지도</h2>
+      <p class="pop-note">붉을수록 수동 구매에서 자주, 푸를수록 드물게 선택되는 번호입니다 (모델이 아닌 실측 통계 기준).</p>
+      <div id="num-map"></div>
+
+      <h2>🔍 조합 인기도 검색</h2>
+      <form id="pop-search">
+        <input id="pop-search-input" type="text" placeholder="번호 6개 입력 — 예: 3 7 12 24 31 44" autocomplete="off">
+        <button type="submit">조회</button>
+      </form>
+      <p id="pop-search-error" class="error" hidden></p>
+      <div id="pop-search-result" hidden></div>
+
+      <div class="hist-head">
+        <h2>📋 인기도 순 전체 조합</h2>
+        <select id="pop-sort" aria-label="정렬" hidden>
+          <option value="desc">인기 높은 순</option>
+          <option value="asc">인기 낮은 순</option>
+        </select>
+      </div>
+      <p class="pop-note">전체 8,145,060개 조합을 점수대로 묶어 정렬합니다. 같은 점수대에서는 예시 조합만 표시합니다.</p>
+      <button id="scan-btn" type="button">전체 814만 조합 분석</button>
+      <progress id="scan-progress" max="1" value="0" hidden></progress>
+      <div id="pop-tiers"></div>
+      <button id="pop-more" type="button" hidden>더 보기</button>
+
+      <details id="pop-method">
+        <summary>어떻게 추정하나요?</summary>
+        <p>자동 구매는 균등 무작위라서 조합 선호는 수동 구매에서만 생깁니다. 1등 당첨자의 자동/수동 구분이 집계되는 262회부터 매 회차의 수동·반자동 1등 당첨자 수를 그 회차 판매량 기준 기대치와 비교하면 당첨 조합의 상대 인기도가 나오고, 이를 조합 특성에 대한 푸아송 회귀로 일반화했습니다. 학습된 특성별 효과(+1단위당 인기 배수):</p>
+        <table><tbody id="pop-coefs"></tbody></table>
+        <p>한계: 특성으로 설명되는 경향만 반영하므로 특정 유명 조합(예: 7·14·21·28·35·42)의 개별 인기는 과소평가될 수 있습니다. 자동 구매가 판매의 다수를 차지해 모든 조합에 고르게 깔리므로 "판매량 0"인 조합은 없습니다. 숫자별 인기 지도는 모델과 별개로 번호 단위 실측 통계이며 표본 노이즈(±0.1 남짓)가 있습니다.</p>
+      </details>
     </div>
-    <details id="pop-method">
-      <summary>어떻게 추정하나요?</summary>
-      <p>자동 구매는 균등 무작위라서 조합 선호는 수동 구매에서만 생깁니다. 1등 당첨자의 자동/수동 구분이 집계되는 262회부터 매 회차의 수동·반자동 1등 당첨자 수를 그 회차 판매량 기준 기대치와 비교하면 당첨 조합의 상대 인기도가 나오고, 이를 조합 특성에 대한 푸아송 회귀로 일반화했습니다. 학습된 특성별 효과(+1단위당 인기 배수):</p>
-      <table><tbody id="pop-coefs"></tbody></table>
-      <p>한계: 특성으로 설명되는 경향만 반영하므로 특정 유명 조합(예: 7·14·21·28·35·42)의 개별 인기는 과소평가될 수 있습니다. 자동 구매가 판매의 다수를 차지해 모든 조합에 고르게 깔리므로 "판매량 0"인 조합은 없습니다.</p>
-    </details>
   </section>
 
-  <p id="message" class="error" hidden></p>
+  <section id="tab-tax" hidden>
+    <div id="ev-block">
+      <h2>💰 조합의 예상 기대값</h2>
+      <p class="pop-note" id="ev-note"></p>
+      <table class="info-table">
+        <thead><tr><th>조합 인기도</th><th>기대값 / 1,000원</th><th>그중 1등 몫</th></tr></thead>
+        <tbody id="ev-rows"></tbody>
+      </table>
+      <p class="pop-note">4·5등은 금액이 고정이라 인기도와 무관하고, 1~3등은 당첨자끼리 나누기 때문에 비인기 조합일수록 기대값이 높아집니다. 내 조합의 예상 기대값은 [조합 인기도] 탭의 검색에서 확인할 수 있습니다. 세전 기준이며 실제 회차의 판매량·이월에 따라 달라집니다.</p>
+    </div>
+
+    <h2>🧾 당첨금 세금</h2>
+    <ul class="info-list">
+      <li>로또 당첨금은 기타소득으로 <b>분리과세</b>됩니다 — 수령할 때 원천징수로 끝나며 종합소득에 합산되지 않습니다.</li>
+      <li>1건당 <b>200만원 이하는 비과세</b>입니다 — 5등(5천원)·4등(5만원), 대개 3등까지 세금이 없습니다.</li>
+      <li>200만원을 넘으면 전액(복권 구입비 1,000원 공제 후)이 과세됩니다: <b>3억원 이하분 22%</b>(소득세 20% + 지방소득세 2%), <b>3억원 초과분 33%</b>(30% + 3%).</li>
+    </ul>
+    <form id="tax-form">
+      <input id="tax-input" type="text" inputmode="numeric" placeholder="당첨금 입력(원) — 예: 2,500,000,000" autocomplete="off">
+      <button type="submit">계산</button>
+    </form>
+    <p id="tax-error" class="error" hidden></p>
+    <div id="tax-result" class="tax-lines" hidden></div>
+  </section>
 
   <p class="note">번호는 입력 문자열의 SHA-256 해시로 계산되며 무작위 추첨이 아닙니다. 재미로만 이용하세요.</p>
 </main>
@@ -391,14 +488,32 @@
     return draws;
   }
 
+  // ----- 탭 -----
+  const tabPanels = {
+    convert: document.getElementById('tab-convert'),
+    pop: document.getElementById('tab-pop'),
+    tax: document.getElementById('tab-tax'),
+  };
+  const tabBtns = [...document.querySelectorAll('.tab-btn')];
+
+  function showTab(name) {
+    for (const [key, panel] of Object.entries(tabPanels)) panel.hidden = key !== name;
+    tabBtns.forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
+    history.replaceState(null, '', name === 'convert' ? location.pathname + location.search : '#' + name);
+  }
+  tabBtns.forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
   // ----- 조합 인기도 (popularity.js 모델) -----
-  const popSection = document.getElementById('popularity');
   const scanBtn = document.getElementById('scan-btn');
   const scanProgress = document.getElementById('scan-progress');
-  const popResults = document.getElementById('pop-results');
-  const popMost = document.getElementById('pop-most');
-  const popLeast = document.getElementById('pop-least');
-  let popModel = null, popDist = null, scanResult = null, scanHandle = null;
+  const popSortSel = document.getElementById('pop-sort');
+  const popTiersEl = document.getElementById('pop-tiers');
+  const popMoreBtn = document.getElementById('pop-more');
+  const popSearchInput = document.getElementById('pop-search-input');
+  const popSearchError = document.getElementById('pop-search-error');
+  const popSearchResult = document.getElementById('pop-search-result');
+  let popModel = null, popDist = null, evParams = null, scanResult = null, scanHandle = null;
+  let tiersCache = null, tiersShown = 0;
 
   function ensurePopModel() {
     if (popModel) return true;
@@ -410,8 +525,64 @@
       .map((d) => ({ epsd: d.epsd, nums: d.nums, y: d.manual1 + d.semi1, games: d.sales / 1000 }));
     popModel = LottoPop.fit(data);
     popDist = LottoPop.sampleDist(popModel);
+    initEvParams(ds);
     renderPopCoefs();
+    renderNumMap(LottoPop.numberStats(data));
+    renderEvTable();
     return true;
+  }
+
+  // 기대값 파라미터: 판매량·등수별 배분 총액은 최근 52회, 자동 구매 비중은 최근 156회 평균으로 추정
+  function initEvParams(ds) {
+    const avg = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+    const recent = ds.slice(-52);
+    const games = avg(recent.map((d) => d.sales / 1000));
+    const pool = (i) => avg(recent.filter((d) => d.cnt[i] > 0).map((d) => d.amt[i] * d.cnt[i]));
+    const wt = ds.slice(-156);
+    const autoShare =
+      wt.reduce((a, d) => a + d.auto1, 0) / wt.reduce((a, d) => a + d.sales / 1000 / LottoPop.TOTAL_COMBOS, 0);
+    evParams = { games, pool1: pool(0), pool2: pool(1), pool3: pool(2), autoShare };
+    evParams.avgTotal = LottoPop.expectedValueAt(evParams, 1).total;
+    document.getElementById('ev-note').textContent =
+      '최근 52회 평균 기준: 회당 판매 약 ' + (games / 1e8).toFixed(1) + '억 게임, 1등 배분 총액 약 ' +
+      Math.round(evParams.pool1 / 1e8).toLocaleString('ko-KR') + '억 원, 자동 구매 비중 약 ' +
+      Math.round(autoShare * 100) + '%. 이 조건에서 인기도별 1,000원 1게임의 예상 기대값(세전)은 다음과 같습니다.';
+  }
+
+  function renderEvTable() {
+    const tbody = document.getElementById('ev-rows');
+    tbody.innerHTML = '';
+    for (const [r, label] of [[0.25, '×0.25 (매우 비인기)'], [0.5, '×0.5 (비인기)'], [1, '×1.0 (평균)'], [2, '×2 (인기)'], [5, '×5 (매우 인기)']]) {
+      const ev = LottoPop.expectedValueAt(evParams, r);
+      const tr = document.createElement('tr');
+      for (const text of [label, Math.round(ev.total).toLocaleString('ko-KR') + '원', Math.round(ev.ev1).toLocaleString('ko-KR') + '원']) {
+        const td = document.createElement('td');
+        td.textContent = text;
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+  }
+
+  // 숫자별 인기 지도: 실측 통계(rel[n], 평균=1)를 붉은색(인기)~푸른색(비인기)으로 표시
+  function renderNumMap(rel) {
+    const map = document.getElementById('num-map');
+    map.innerHTML = '';
+    for (let n = 1; n <= 45; n++) {
+      const cell = document.createElement('div');
+      cell.className = 'num-cell';
+      const t = Math.max(-1, Math.min(1, (rel[n] - 1) / 0.3));
+      cell.style.background = t >= 0
+        ? 'rgba(255, 114, 114, ' + (t * 0.45).toFixed(3) + ')'
+        : 'rgba(91, 140, 255, ' + (-t * 0.45).toFixed(3) + ')';
+      cell.title = n + '번은 수동 구매에서 평균 대비 ' + rel[n].toFixed(2) + '배 선택됩니다';
+      const num = document.createElement('b');
+      num.textContent = n;
+      const val = document.createElement('span');
+      val.textContent = '×' + rel[n].toFixed(2);
+      cell.append(num, val);
+      map.appendChild(cell);
+    }
   }
 
   function popScore(nums) {
@@ -453,29 +624,109 @@
     });
   }
 
-  function fillPopList(container, groups) {
-    container.innerHTML = '';
-    for (const g of groups) {
-      const row = document.createElement('div');
-      row.className = 'pop-row';
-      const mult = document.createElement('span');
-      mult.className = 'pop-mult';
-      mult.textContent = '×' + g.mult.toFixed(2);
-      const combos = document.createElement('div');
-      combos.className = 'pop-combos';
-      g.combos.forEach((nums) => {
-        const balls = document.createElement('div');
-        balls.className = 'hit-balls';
-        nums.forEach((n) => balls.appendChild(ballEl(n, true)));
-        combos.appendChild(balls);
-      });
-      const count = document.createElement('span');
-      count.className = 'pop-count';
-      count.textContent = '이 인기도의 조합 ' + g.count.toLocaleString('ko-KR') + '개';
-      row.append(mult, combos, count);
-      container.appendChild(row);
+  // ----- 조합 인기도 검색 -----
+  document.getElementById('pop-search').addEventListener('submit', (e) => {
+    e.preventDefault();
+    popSearchError.hidden = true;
+    popSearchResult.hidden = true;
+    if (!ensurePopModel()) return;
+    const nums = popSearchInput.value.split(/[^0-9]+/).filter(Boolean).map(Number);
+    const valid = nums.length === 6 && nums.every((n) => n >= 1 && n <= 45) && new Set(nums).size === 6;
+    if (!valid) {
+      popSearchError.textContent = '1~45 사이의 서로 다른 숫자 6개를 입력해 주세요.';
+      popSearchError.hidden = false;
+      return;
     }
+    nums.sort((a, b) => a - b);
+    renderSearchResult(nums);
+  });
+
+  function renderSearchResult(nums) {
+    const { s, pct } = popScore(nums);
+    popSearchResult.innerHTML = '';
+    const slip = document.createElement('div');
+    slip.className = 'slip';
+    const balls = document.createElement('div');
+    balls.className = 'balls';
+    nums.forEach((n, i) => {
+      const ball = document.createElement('span');
+      ball.className = 'ball ' + colorClass(n);
+      ball.textContent = n;
+      ball.style.animationDelay = i * 40 + 'ms';
+      balls.appendChild(ball);
+    });
+    slip.append(balls, popBadgeEl(nums));
+    const ev = LottoPop.expectedValue(popModel, evParams, nums);
+    const text = document.createElement('p');
+    text.className = 'pop-search-text';
+    text.textContent =
+      '평균 조합의 ' + s.toFixed(2) + '배로 팔리는 유형입니다. 전체 조합 중 약 ' +
+      Math.min(99, Math.max(1, Math.round(pct))) + '%가 이 조합보다 덜 팔립니다. 예상 기대값은 1,000원당 약 ' +
+      Math.round(ev.total).toLocaleString('ko-KR') + '원입니다(세전, 평균 조합은 약 ' +
+      Math.round(evParams.avgTotal).toLocaleString('ko-KR') + '원).';
+    const chips = document.createElement('div');
+    chips.className = 'pop-chips';
+    const bd = LottoPop.breakdown(popModel, nums);
+    if (bd.length === 0) {
+      const chip = document.createElement('span');
+      chip.className = 'pop-chip';
+      chip.textContent = '두드러진 특징 없음 (기준 유형)';
+      chips.appendChild(chip);
+    }
+    for (const b of bd) {
+      const chip = document.createElement('span');
+      chip.className = 'pop-chip';
+      chip.textContent = b.short + (b.unit ? ' ' + b.x + b.unit : '') + ' ×' + b.mult.toFixed(2);
+      chips.appendChild(chip);
+    }
+    popSearchResult.append(slip, text, chips);
+    popSearchResult.hidden = false;
   }
+
+  // ----- 인기도 순 전체 조합 (전 조합 스캔 필요) -----
+  function fmtRankRange(t) {
+    if (t.count === 1) return t.rankStart.toLocaleString('ko-KR') + '위';
+    return t.rankStart.toLocaleString('ko-KR') + '~' + (t.rankStart + t.count - 1).toLocaleString('ko-KR') + '위';
+  }
+
+  function tierRowEl(t) {
+    const row = document.createElement('div');
+    row.className = 'pop-row';
+    const rank = document.createElement('span');
+    rank.className = 'pop-rank';
+    rank.textContent = fmtRankRange(t);
+    const mult = document.createElement('span');
+    mult.className = 'pop-mult';
+    mult.textContent = '×' + t.mult.toFixed(2);
+    const combos = document.createElement('div');
+    combos.className = 'pop-combos';
+    for (const nums of t.combos) {
+      const balls = document.createElement('div');
+      balls.className = 'hit-balls';
+      nums.forEach((n) => balls.appendChild(ballEl(n, true)));
+      combos.appendChild(balls);
+    }
+    const count = document.createElement('span');
+    count.className = 'pop-count';
+    count.textContent = t.count.toLocaleString('ko-KR') + '개 조합';
+    row.append(rank, mult, combos, count);
+    return row;
+  }
+
+  function renderTiers(reset) {
+    if (!tiersCache) return;
+    if (reset) {
+      tiersShown = 0;
+      popTiersEl.innerHTML = '';
+    }
+    const list = popSortSel.value === 'asc' ? [...tiersCache].reverse() : tiersCache;
+    for (const t of list.slice(tiersShown, tiersShown + 25)) popTiersEl.appendChild(tierRowEl(t));
+    tiersShown = Math.min(tiersShown + 25, list.length);
+    popMoreBtn.hidden = tiersShown >= list.length;
+  }
+
+  popSortSel.addEventListener('change', () => renderTiers(true));
+  popMoreBtn.addEventListener('click', () => renderTiers(false));
 
   scanBtn.addEventListener('click', () => {
     if (!ensurePopModel() || scanHandle || scanResult) return;
@@ -488,12 +739,59 @@
         scanHandle = null;
         scanProgress.hidden = true;
         scanBtn.hidden = true;
-        const ex = LottoPop.extremes(res, 6);
-        fillPopList(popMost, ex.most);
-        fillPopList(popLeast, ex.least);
-        popResults.hidden = false;
+        tiersCache = LottoPop.buildTiers(res);
+        popSortSel.hidden = false;
+        renderTiers(true);
       },
     });
+  });
+
+  // ----- 당첨금 세금 -----
+  // 200만원 이하 비과세(과세최저한). 초과 시 구입비 1,000원 공제 후 3억 이하분 22%, 초과분 33% 원천징수.
+  function lottoTax(amount) {
+    if (amount <= 2000000) return { tax: 0, low: 0, high: 0, taxable: 0 };
+    const taxable = amount - 1000;
+    const low = Math.floor(Math.min(taxable, 300000000) * 0.22);
+    const high = Math.floor(Math.max(0, taxable - 300000000) * 0.33);
+    return { tax: low + high, low, high, taxable };
+  }
+
+  const taxError = document.getElementById('tax-error');
+  const taxResult = document.getElementById('tax-result');
+
+  document.getElementById('tax-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    taxError.hidden = true;
+    taxResult.hidden = true;
+    const amount = Number(document.getElementById('tax-input').value.replace(/[^0-9]/g, ''));
+    if (!amount) {
+      taxError.textContent = '당첨금을 숫자로 입력해 주세요.';
+      taxError.hidden = false;
+      return;
+    }
+    const t = lottoTax(amount);
+    taxResult.innerHTML = '';
+    const line = (label, value, cls) => {
+      const div = document.createElement('div');
+      if (cls) div.className = cls;
+      const l = document.createElement('span');
+      l.textContent = label;
+      const v = document.createElement('span');
+      v.textContent = value;
+      div.append(l, v);
+      taxResult.appendChild(div);
+    };
+    line('당첨금', amount.toLocaleString('ko-KR') + '원');
+    if (t.tax === 0) {
+      line('세금', '0원 (200만원 이하 비과세)');
+    } else {
+      line('과세표준 (구입비 1,000원 공제)', t.taxable.toLocaleString('ko-KR') + '원');
+      line('3억원 이하분 세금 (22%)', '−' + t.low.toLocaleString('ko-KR') + '원');
+      if (t.high > 0) line('3억원 초과분 세금 (33%)', '−' + t.high.toLocaleString('ko-KR') + '원');
+      line('세금 합계 (실효세율 ' + ((t.tax / amount) * 100).toFixed(1) + '%)', '−' + t.tax.toLocaleString('ko-KR') + '원');
+    }
+    line('실수령액', (amount - t.tax).toLocaleString('ko-KR') + '원', 'tax-final');
+    taxResult.hidden = false;
   });
 
   // 한 게임(6개 번호)을 전 회차와 대조해 등수별 히트 목록을 반환
@@ -564,6 +862,12 @@
     const amt = document.createElement('span');
     amt.className = 'hit-amt';
     amt.textContent = fmtWon(hit.amount);
+    if (hit.amount > 0) {
+      const t = lottoTax(hit.amount);
+      amt.title = t.tax === 0
+        ? '200만원 이하 비과세 — 전액 수령'
+        : '현행 세법 기준 실수령 약 ' + (hit.amount - t.tax).toLocaleString('ko-KR') + '원';
+    }
     meta.append(rank, drawInfo, cnt);
     if (popModel) {
       const { s, pct } = popScore(hit.draw.nums);
@@ -632,11 +936,15 @@
 
   maxRankSelect.addEventListener('change', renderHistory);
 
-  // 데이터가 있으면 인기도 섹션을 켜고 모델을 미리 적합해 둔다 (수십 ms 수준)
+  // 시작: 데이터가 있으면 모델을 미리 적합해 두고(수십 ms 수준), URL 해시로 탭 복원
   if (getDraws()) {
-    popSection.hidden = false;
     ensurePopModel();
+  } else {
+    document.getElementById('pop-error').hidden = false;
+    document.getElementById('pop-content').hidden = true;
+    document.getElementById('ev-block').hidden = true;
   }
+  if (location.hash === '#pop' || location.hash === '#tax') showTab(location.hash.slice(1));
 
   copyBtn.addEventListener('click', async () => {
     if (!lastResult) return;
